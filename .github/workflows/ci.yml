@@ -41,3 +41,13 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # Until a lockfile is committed, surface the one CI generated so it can be pulled
+      # down and committed for reproducible installs (dev sandbox can't reach npm).
+      - name: Upload generated lockfile
+        if: hashFiles('package-lock.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json
+          if-no-files-found: ignore
