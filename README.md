@@ -1,0 +1,91 @@
+# user-tailored-ui
+
+> Kiroween 2026 — **Skeleton Crew** entry. A reusable, web-first app foundation where
+> **end-users customize their experience through an in-app AI agent**, while **creators
+> keep control of the app's rules**.
+
+This repo owns the reusable **skeleton**, the **shared customization** logic, the
+**integration contracts**, and is the **main hackathon submission**. It is demonstrated by
+two distinct applications: a **Planner** and an **Inventory** app.
+
+**Status:** early scaffolding. This README documents intent and the architecture we are
+building toward; sections marked _(planned)_ are not yet implemented. We do not overstate
+reliability — see [Limitations](#limitations).
+
+## The idea
+
+An end-user asks, in natural language, to adapt the app to how they work ("turn my board
+into a focused daily agenda"). A **real model-backed agent** turns that into a **proposed
+configuration**. That proposal is **untrusted**: it passes through **deterministic
+validation** against the **creator's policy** before anything is applied. If it violates a
+rule, it is **rejected with an explanation**, and the last valid view is preserved.
+
+```
+request → real-agent proposal → deterministic validation → preview → apply → save → reopen → undo
+```
+
+See the full model in [`.kiro/steering/10-customization-boundary.md`](.kiro/steering/10-customization-boundary.md).
+
+## Architecture (ports & adapters)
+
+- **Domain** — pure TypeScript (tasks, items, policy, invariants, validation). No React,
+  no model, no storage.
+- **Inference port** — `InferenceProvider`; first adapter is Anthropic (`@anthropic-ai/sdk`),
+  plus a labeled deterministic **test double** for CI. OpenAI/Codex later.
+- **Storage port** — over [`browser-repos`](https://github.com/taylor-made-labs/browser-repos)
+  (IndexedDB-backed Git) for **customization history**, scoped per user+app, separate from
+  business data and creator-owned source.
+- **UI capability port** — over the [TailoredUI](https://github.com/taylor-made-labs/TailoredUI)
+  fork. App code never imports the fork directly.
+
+Credentials support **BYOK** (user supplies their key, client-side only) and **owner-managed
+subscription** (owner backend holds the key). Secrets never enter the browser bundle, repo,
+logs, or Git history.
+
+## Repository map
+
+| Repo | Role |
+|---|---|
+| **user-tailored-ui** (this) | Reusable skeleton, shared customization, contracts, submission |
+| [TailoredUI](https://github.com/taylor-made-labs/TailoredUI) | Fork — reusable UI capability (MIT, upstream: Aman Singh) |
+| [browser-repos](https://github.com/taylor-made-labs/browser-repos) | IndexedDB-backed Git library (independent, reusable) |
+| [user-tailored-planner](https://github.com/taylor-made-labs/user-tailored-planner) | Planner app |
+| [user-tailored-inventory](https://github.com/taylor-made-labs/user-tailored-inventory) | Inventory app |
+
+Dependencies are consumed at **pinned** versions behind interfaces.
+
+## Getting started _(planned)_
+
+Build/test is verified in **GitHub Actions CI** (the dev sandbox has no public network).
+Once scaffolded:
+
+```bash
+npm ci
+npm run test     # deterministic — uses the labeled test-double inference adapter
+npm run dev      # runnable demo — uses the real agent adapter (needs a key; see docs)
+```
+
+## Adopting the foundation in a new app _(planned, documented as contracts land)_
+
+A new app implements the data/actions/policy/preferences contracts and wires the three
+ports; it does **not** copy either example app. Setup, extension points, supported limits,
+and offline-vs-model-connected capabilities will be documented here.
+
+## Licensing
+
+Dual-licensed under either **MIT** ([LICENSE-MIT](LICENSE-MIT)) or
+**Apache-2.0** ([LICENSE-APACHE](LICENSE-APACHE)), at your option. Third-party and upstream
+attributions are in [NOTICE](NOTICE).
+
+## Limitations
+
+- Customization enforcement covers an explicit, finite set of invariants — **not** universal
+  correctness. Enforced scope is documented alongside each app.
+- The agent's natural-language interpretation is real and therefore variable; validation is
+  deterministic and is the actual guarantee. Quota/rate/network failures are surfaced and
+  fall back to a recoverable valid view.
+
+## Kiro & Kiroween 2026
+
+Built with [Kiro](https://kiro.dev) using a spec-driven workflow for **Kiroween 2026**.
+Specs, steering, and development evidence live in the public [`.kiro/`](.kiro/) directory.

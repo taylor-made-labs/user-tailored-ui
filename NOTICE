@@ -1,0 +1,28 @@
+user-tailored-ui
+Copyright 2026 taylor-made-labs
+
+This product is dual-licensed under either of:
+  - MIT license (see LICENSE-MIT), or
+  - Apache License, Version 2.0 (see LICENSE-APACHE)
+at your option.
+
+================================================================================
+Third-party and upstream attributions
+================================================================================
+
+This repository's sibling/dependency projects reuse or build upon the following.
+Each retains its own license; see the respective project for full terms.
+
+- TailoredUI (fork of https://github.com/TailoredUI/TailoredUI)
+    License: MIT. Copyright (c) 2023 Aman Singh.
+    Used as the reusable UI capability layer (consumed behind an interface).
+
+- isomorphic-git (https://github.com/isomorphic-git/isomorphic-git)
+    License: MIT. Pure-JS Git implementation used by browser-repos.
+
+- @isomorphic-git/lightning-fs (https://github.com/isomorphic-git/lightning-fs)
+    License: MIT. IndexedDB-backed filesystem used by browser-repos.
+
+Additional dependencies and their licenses are declared in each package's
+package.json and lockfile. Any further vendored code will be listed here with
+its license and attribution before use.
