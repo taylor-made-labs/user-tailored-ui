@@ -1,0 +1,43 @@
+name: CI
+
+# Deterministic verification: typecheck, lint, and the full test suite using the
+# LABELED test-double inference adapter. No secrets, no network beyond npm. The real
+# Anthropic agent is exercised in demos / a separate gated job, not here.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Use `npm ci` when a committed lockfile exists (reproducible); otherwise fall
+      # back to `npm install` so the very first CI run can generate the lockfile. The
+      # dev sandbox has no network to produce the lockfile locally, so the first green
+      # run publishes it (see CONTRIBUTING / dev notes).
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test (deterministic, test-double adapter)
+        run: npm test
+
+      - name: Build
+        run: npm run build
