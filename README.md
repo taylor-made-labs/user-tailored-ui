@@ -54,6 +54,21 @@ logs, or Git history.
 
 Dependencies are consumed at **pinned** versions behind interfaces.
 
+## Runnable demo apps (vendored in this repo)
+
+The two demo apps are included here as **reproducible, runnable copies**, so a fresh clone
+of this repo builds and runs both without checking out their source repos:
+
+| Folder | App | Vendored from |
+|---|---|---|
+| [`apps/planner/`](apps/planner/) | Planner — task planning → focused daily agenda | [user-tailored-planner](https://github.com/taylor-made-labs/user-tailored-planner) |
+| [`apps/inventory/`](apps/inventory/) | Inventory — stock tracking → low-stock focus view | [user-tailored-inventory](https://github.com/taylor-made-labs/user-tailored-inventory) |
+
+Each folder has a README recording its exact source commit and the one command to
+reproduce/update it ([`scripts/vendor-apps.sh`](scripts/vendor-apps.sh)). CI builds and
+tests both copies on every push (`.github/workflows/ci.yml`, job **apps**), so the green
+checks on a fresh clone are the proof they run.
+
 ## Getting started _(planned)_
 
 Build/test is verified in **GitHub Actions CI** (the dev sandbox has no public network).

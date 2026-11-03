@@ -44,7 +44,17 @@ for (const file of files) {
   if (!['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json'].includes(ext)) continue;
   // Skip this checker and tests that legitimately reference forbidden patterns as strings.
   if (file.endsWith('boundary-check.mjs')) continue;
-  const text = readFileSync(file, 'utf8');
+  const raw = readFileSync(file, 'utf8');
+  // Match against CODE only, not comments: the invariants here (no localStorage /
+  // chrome.storage / eval / Function) forbid USE in product code, but prose that merely
+  // names the forbidden API — e.g. a JSDoc line "Storage is IndexedDB ONLY, never
+  // localStorage" — must not trip the checker. Strip block and line comments first so a
+  // faithful copy's own documentation of the rule is not flagged as breaking it. Real
+  // usage in executable code is unaffected. (Secret-shape detection runs on the raw text
+  // below, since a committed key is a blocker wherever it appears, comment or not.)
+  const text = raw
+    .replace(/\/\*[\s\S]*?\*\//g, ' ') // block comments
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1'); // line comments (keep "://" in URLs intact)
   const isTest = /\.test\.|[\\/]test[\\/]/.test(file);
 
   // 1. No eval / Function constructor / dynamic code execution.
@@ -60,12 +70,14 @@ for (const file of files) {
     add('blocker', 'indexeddb-only', file, 'chrome.storage used (IndexedDB only)');
   }
 
-  // 3. No committed secrets (very common key shapes).
-  if (/sk-ant-[A-Za-z0-9_-]{8,}/.test(text) || /\bAKIA[0-9A-Z]{16}\b/.test(text)) {
+  // 3. No committed secrets (very common key shapes). Scan RAW text — a committed key is
+  // a blocker wherever it appears, including inside a comment.
+  if (/sk-ant-[A-Za-z0-9_-]{8,}/.test(raw) || /\bAKIA[0-9A-Z]{16}\b/.test(raw)) {
     add('blocker', 'no-committed-secrets', file, 'looks like a committed API key');
   }
-  // Runtime CDN script injection (MV3 constraint) — flag obvious cases.
-  if (/https?:\/\/[^"']*\.js["']\s*\)?\s*;?\s*\/\/\s*cdn/i.test(text)) {
+  // Runtime CDN script injection (MV3 constraint) — flag obvious cases. Scan RAW so the
+  // explanatory "// cdn" marker is still seen.
+  if (/https?:\/\/[^"']*\.js["']\s*\)?\s*;?\s*\/\/\s*cdn/i.test(raw)) {
     add('warn', 'mv3-no-runtime-cdn', file, 'possible runtime CDN code reference');
   }
 }
