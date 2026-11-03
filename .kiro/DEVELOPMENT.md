@@ -14,11 +14,11 @@ public per the hackathon requirement.
 
 ## Lockfile
 
-Because the sandbox has no registry access, `package-lock.json` cannot be generated
-locally. CI installs with `npm install` when no lockfile is present and `npm ci` once one
-exists. **After the first green CI run, commit the generated `package-lock.json`** so
-subsequent installs are fully reproducible (pinned devDependency versions are already in
-`package.json`).
+Because the sandbox has no registry access, `package-lock.json` could not be generated
+locally. It was produced by the first green CI run and committed to the repo, so installs
+are now fully reproducible via `npm ci`. When dependencies change and the sandbox still
+lacks npm access, regenerate the lockfile via CI (temporarily upload it as an artifact) and
+commit the result.
 
 ## What this PR delivers (tracer bullet)
 
