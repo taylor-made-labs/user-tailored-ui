@@ -41,6 +41,28 @@ rejected-violation demo with a recoverable valid view.
   automation. If resuming under full Kiro Crew, these can now be layered on top of the
   existing specs/steering/agents.
 
+## Maximize Kiro Crew (do this on the Mac app — standing goal)
+
+This project was built on Kiro Web, which can't use Crew-only features. Now that you're on
+the local Mac Crew app, actively adopt the Crew capabilities we couldn't before. The PM's
+standing meta-goal is to **maximize what Kiro broadly (and Crew specifically) can offer.**
+
+- **Scheduled jobs** — set up recurring work, e.g.: a weekday CI/PR + compliance sweep
+  (check PRs/CI on taylor-made-labs/user-tailored-ui and re-check
+  `.kiro/steering/90-hackathon-compliance.md`); a CI-failure triage job; a Dec 4 2026
+  deadline countdown; milestone reminders to draft DEV blog posts.
+- **Heartbeats / webhooks** — reactive monitoring (e.g. notify when a PR check fails) and
+  external triggers.
+- **Persistent memory / lessons** — let Crew learn this project's conventions durably across
+  sessions (the auto-merge policy and tracer-bullet/flywheel/dogfooding + ports-adapters
+  preferences are in steering; reinforce them as Crew lessons).
+- Keep using the unified features already in place: specs, steering, the committed
+  `customization-boundary-reviewer` agent (Agent Config), and the devto MCP server.
+- Guardrail unchanged: unattended/scheduled runs never get blanket trust and must respect the
+  sensitive-path human-approval gate in the auto-merge pipeline.
+
+Proactively propose a concrete Crew setup for the above before resuming the Planner build.
+
 ## Pending decisions / inputs needed
 
 - **Anthropic key** (for the real inference adapter + managed demo): add `ANTHROPIC_API_KEY`
