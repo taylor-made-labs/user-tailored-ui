@@ -1,14 +1,29 @@
 name: CI
 
-# Deterministic verification: typecheck, lint, and the full test suite using the
-# LABELED test-double inference adapter. No secrets, no network beyond npm. The real
-# Anthropic agent is exercised in demos / a separate gated job, not here.
+# Deterministic verification. Two concerns, both gating:
+#
+#   1. verify  — the FOUNDATION (this repo's own src/ + test/): typecheck, lint,
+#      the full test suite using the LABELED test-double inference adapter, then build.
+#      No secrets, no network beyond npm. The real Anthropic agent is exercised in
+#      demos / a separate gated job, not here.
+#
+#   2. apps     — the VENDORED runnable demo apps under apps/* (Planner, Inventory).
+#      Each is a self-contained copy of its authoritative repo and MUST build and test
+#      on its own: a fresh `npm ci && typecheck && lint && test && build` in each app
+#      directory. This is what gives judges green checks on a fresh clone (Skeleton Crew
+#      requirement: both apps reproducible + runnable in separate folders within this repo).
+#
+# The two jobs are independent so the foundation stays green regardless of the apps and
+# vice-versa; both must pass for the PR to be mergeable.
 on:
   push:
     branches: [main]
   pull_request:
 
 jobs:
+  # Job id MUST stay `verify` and carry no custom `name:` — the Auto-merge workflow
+  # gates on a check named exactly "verify" (byName('verify')). Renaming it would
+  # silently break auto-merge.
   verify:
     runs-on: ubuntu-latest
     steps:
@@ -29,6 +44,40 @@ jobs:
         run: npm run lint
 
       - name: Test (deterministic, test-double adapter)
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  apps:
+    name: app (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [planner, inventory]
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test (deterministic)
         run: npm test
 
       - name: Build

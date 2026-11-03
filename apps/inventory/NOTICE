@@ -1,0 +1,19 @@
+user-tailored-planner
+Copyright 2026 taylor-made-labs
+
+This product is dual-licensed under either of:
+  - MIT license (see LICENSE-MIT), or
+  - Apache License, Version 2.0 (see LICENSE-APACHE)
+at your option.
+
+================================================================================
+Third-party and upstream attributions
+================================================================================
+
+This is a seed scaffold. No third-party source is vendored into this repository
+yet. Dependencies are declared in package.json and pinned in the committed
+package-lock.json; each retains its own license.
+
+When this app begins consuming the user-tailored-ui foundation (as a pinned
+dependency, through its public ports only) or vendors any third-party code, the
+relevant attributions will be added here with their license before use.
