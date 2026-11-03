@@ -39,8 +39,9 @@ and the PM brief. Verify manually before relying on any dated item.)
 - [ ] All vendored third-party code: license + attribution recorded.
 
 ## Bonus: DEV blog
-- [ ] Unpublished DEV drafts via `@furkankoykiran/devto-mcp` at milestones; credentials
-      configured outside repos; **never auto-publish**; ask before editing published posts.
+- [ ] Unpublished DEV drafts via `@furkankoykiran/devto-mcp` (env `DEVTO_API_KEY`;
+      configured in `.kiro/settings/mcp.json` via Web secret syntax, never committed) at
+      milestones; **never auto-publish**; ask before editing published posts.
 - [ ] Credit Kiro and Kiroween 2026 in the qualifying write-up.
 - [ ] Keep AI-writing disclosure on the human-review checklist.
 - [ ] For bonus: PM publishes the reviewed post during the submission period; include URL

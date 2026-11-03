@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "devto": {
+      "command": "npx",
+      "args": ["-y", "@furkankoykiran/devto-mcp"],
+      "env": {
+        "DEVTO_API_KEY": "$SECRET:DEVTO_API_KEY"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
