@@ -53,10 +53,15 @@ import type { CustomizationProposal } from '../../domain/customization/types.js'
  * to `AgentSdkQuery`; see the live smoke test for the wiring.
  * ------------------------------------------------------------------------- */
 
+/** Reasoning/thinking effort level, mirroring the Agent SDK `effort` option. */
+export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
 /** The subset of Agent SDK `Options` this adapter sets. */
 export interface AgentSdkQueryOptions {
   /** Which Claude model to use (alias or full id). Optional; CLI default otherwise. */
   readonly model?: string;
+  /** Reasoning/thinking effort. Maps to the Agent SDK `effort` option. */
+  readonly effort?: ReasoningEffort;
   /** Hard cap on agentic turns. We always pass 1 (single-shot). */
   readonly maxTurns?: number;
   /** Tools to auto-approve. We pass [] — approve nothing. */
@@ -120,13 +125,37 @@ export interface AgentSdkAdapterConfig {
    *   `import { query } from '@anthropic-ai/claude-agent-sdk';`
    */
   readonly query: AgentSdkQuery;
-  /** Optional model override (alias like 'sonnet' or a full model id). */
+  /**
+   * Model override (alias like 'sonnet' / 'haiku', or a full model id). When
+   * omitted, the adapter uses {@link DEFAULT_MODEL}. Passed through to the Agent
+   * SDK's `model` option — never hardcoded deep in the call path.
+   */
   readonly model?: string;
+  /**
+   * Reasoning/thinking effort override. When omitted, the adapter uses
+   * {@link DEFAULT_EFFORT}. Passed through to the Agent SDK's `effort` option.
+   */
+  readonly effort?: ReasoningEffort;
   /** Milliseconds before the single query turn is aborted. Default 60_000. */
   readonly timeoutMs?: number;
   /** Provider id reported on responses. Default 'claude-agent-sdk'. */
   readonly providerId?: string;
 }
+
+/* ------------------------------------------------------------------------- *
+ * Model + effort defaults.
+ *
+ * These are the single place to change which model and thinking level the real
+ * adapter uses. Today: Claude Haiku (latest) at MEDIUM effort. Bump to 'sonnet'
+ * or a higher effort here (or per-instance via config) when we want more.
+ * 'haiku' is an alias the Agent SDK resolves to the latest Haiku model.
+ * ------------------------------------------------------------------------- */
+
+/** Default model: Claude Haiku, latest (the SDK resolves the 'haiku' alias). */
+export const DEFAULT_MODEL = 'haiku';
+
+/** Default reasoning/thinking effort. */
+export const DEFAULT_EFFORT: ReasoningEffort = 'medium';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_PROVIDER_ID = 'claude-agent-sdk';
@@ -166,16 +195,16 @@ function buildOptions(
   config: AgentSdkAdapterConfig,
   abortController: AbortController,
 ): AgentSdkQueryOptions {
-  const base = {
+  return {
+    model: config.model ?? DEFAULT_MODEL,
+    effort: config.effort ?? DEFAULT_EFFORT,
     maxTurns: 1,
-    allowedTools: [] as readonly string[],
-    disallowedTools: ['*'] as readonly string[],
-    settingSources: [] as readonly string[],
+    allowedTools: [],
+    disallowedTools: ['*'],
+    settingSources: [],
     systemPrompt: SYSTEM_PROMPT,
     abortController,
   };
-  // exactOptionalPropertyTypes: only attach `model` when actually set.
-  return config.model === undefined ? base : { ...base, model: config.model };
 }
 
 const SYSTEM_PROMPT = [

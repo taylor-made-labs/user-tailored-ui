@@ -13,6 +13,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   AgentSdkInferenceAdapter,
+  DEFAULT_EFFORT,
+  DEFAULT_MODEL,
   type AgentSdkMessage,
   type AgentSdkQuery,
   type AgentSdkQueryOptions,
@@ -126,7 +128,7 @@ describe('AgentSdkInferenceAdapter — mapping', () => {
 describe('AgentSdkInferenceAdapter — safety posture sent to the SDK', () => {
   it('constrains the query to a single, tool-less, settings-less turn', async () => {
     const { query, calls } = scriptedQuery(okResult('{}'));
-    const adapter = new AgentSdkInferenceAdapter({ query, model: 'sonnet' });
+    const adapter = new AgentSdkInferenceAdapter({ query, model: 'sonnet', effort: 'high' });
     await adapter.propose(request);
 
     expect(calls).toHaveLength(1);
@@ -136,6 +138,7 @@ describe('AgentSdkInferenceAdapter — safety posture sent to the SDK', () => {
     expect(opts.disallowedTools).toEqual(['*']);
     expect(opts.settingSources).toEqual([]);
     expect(opts.model).toBe('sonnet');
+    expect(opts.effort).toBe('high');
     expect(typeof opts.systemPrompt).toBe('string');
     expect(opts.abortController).toBeInstanceOf(AbortController);
 
@@ -145,11 +148,18 @@ describe('AgentSdkInferenceAdapter — safety posture sent to the SDK', () => {
     expect(prompt).toContain('board');
   });
 
-  it('omits the model option entirely when not configured', async () => {
+  it('defaults to Claude Haiku (latest) at medium effort when not configured', async () => {
     const { query, calls } = scriptedQuery(okResult('{}'));
     const adapter = new AgentSdkInferenceAdapter({ query });
     await adapter.propose(request);
-    expect('model' in calls[0]!.options!).toBe(false);
+    const opts = calls[0]!.options!;
+    expect(opts.model).toBe('haiku');
+    expect(opts.effort).toBe('medium');
+  });
+
+  it('exposes the defaults as exported constants for easy later bumps', () => {
+    expect(DEFAULT_MODEL).toBe('haiku');
+    expect(DEFAULT_EFFORT).toBe('medium');
   });
 });
 
