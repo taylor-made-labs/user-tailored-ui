@@ -30,8 +30,12 @@ See the full model in [`.kiro/steering/10-customization-boundary.md`](.kiro/stee
 
 - **Domain** — pure TypeScript (tasks, items, policy, invariants, validation). No React,
   no model, no storage.
-- **Inference port** — `InferenceProvider`; first adapter is Anthropic (`@anthropic-ai/sdk`),
-  plus a labeled deterministic **test double** for CI. OpenAI/Codex later.
+- **Inference port** — `InferenceProvider`. Adapters:
+  - **Claude subscription** (`src/adapters/inference/agent-sdk.ts`) — the real agent,
+    via the **Claude Agent SDK** on your **Claude subscription** (no API key). See
+    [Claude subscription adapter](#claude-subscription-adapter-real-agent-no-api-key).
+  - **Test double** (`src/adapters/inference/test-double.ts`) — labeled, deterministic,
+    offline. The CI default. OpenAI/Codex later.
 - **Storage port** — over [`browser-repos`](https://github.com/taylor-made-labs/browser-repos)
   (IndexedDB-backed Git) for **customization history**, scoped per user+app, separate from
   business data and creator-owned source.
@@ -68,6 +72,61 @@ Each folder has a README recording its exact source commit and the one command t
 reproduce/update it ([`scripts/vendor-apps.sh`](scripts/vendor-apps.sh)). CI builds and
 tests both copies on every push (`.github/workflows/ci.yml`, job **apps**), so the green
 checks on a fresh clone are the proof they run.
+
+## Claude subscription adapter (real agent, no API key)
+
+`src/adapters/inference/agent-sdk.ts` is the **real** inference adapter. It turns a
+natural-language request into a customization proposal using the
+[**Claude Agent SDK**](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk)
+(`@anthropic-ai/claude-agent-sdk`, pinned to `0.3.318`), authenticated by **your Claude
+subscription** — **not** a per-token `sk-ant-` API key.
+
+**How auth works.** The Agent SDK wraps the Claude Code CLI. When you sign in to the
+`claude` CLI with your subscription (OAuth), the SDK rides that existing login, and calls
+draw on your subscription. This adapter therefore **never reads, requires, embeds, or logs
+an API key or any credential** — the login lives in your Claude Code setup, outside this
+repo.
+
+**One-time setup** (on your machine, once):
+
+```bash
+# 1. Install the Claude Code CLI and sign in with your subscription (OAuth, no key):
+npm i -g @anthropic-ai/claude-code      # or your platform's installer
+claude                                   # complete the browser OAuth login
+
+# 2. Install the Agent SDK in this repo (it is an optionalDependency; CI never needs it):
+npm i --no-save @anthropic-ai/claude-agent-sdk@0.3.318
+```
+
+**How it stays safe.** The adapter's output is **data** — a `CustomizationProposal` — and
+is **never executed as code**. It is always validated downstream against the creator policy
+before anything applies (the provider is never trusted). The SDK query is constrained to a
+single **tool-less, single-shot text turn** (`maxTurns: 1`, `allowedTools: []`,
+`disallowedTools: ['*']`, `settingSources: []`), so it never runs an autonomous agent loop
+or any tool against your machine — it returns a plain text completion only.
+
+**Decoupling.** App code never imports the SDK. The SDK's `query` function is **injected**
+into the adapter at the composition root, behind a minimal structural type. So the
+foundation's `src/` has no static dependency on the SDK, and the deterministic CI build
+stays keyless and login-free.
+
+**Failures are honest.** Each failure maps to a typed `InferenceError` kind
+(`auth` / `quota` / `rate-limit` / `network` / `invalid-response` / `unknown`), so callers
+surface it plainly and fall back to the labeled test-double in dev — keeping a recoverable
+valid view. Results from the real adapter are labeled `simulated: false`; test-double
+results are always labeled `simulated: true`. **A simulated result is never presented as
+real, and never the reverse.**
+
+**Testing.**
+
+- **Unit tests** (`test/agent-sdk.test.ts`) exercise the adapter with the SDK boundary
+  **mocked/injected** — prompt in → proposal out, and each SDK failure → the right typed
+  `InferenceError`. No network, no login. These run in CI and stay green.
+- **Live smoke test** (`scripts/live-smoke-claude.mjs`, run with `npm run smoke:claude`)
+  proves the **real** subscription path end to end. It is **skipped by default**
+  (only runs when `RUN_LIVE_CLAUDE=1`), lives outside `test/`, and is invisible to
+  typecheck/lint/CI — so CI stays deterministic and keyless. Run it locally after
+  `npm run build` and a `claude` login to verify the real path.
 
 ## Getting started _(planned)_
 
