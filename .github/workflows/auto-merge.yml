@@ -68,9 +68,28 @@ jobs:
             // --- Sensitive-path detection (auto; no manual labeling needed) ---
             const files = await github.paginate(github.rest.pulls.listFiles, {
               owner: context.repo.owner, repo: context.repo.repo, pull_number: number });
+            // Sensitive paths require the "human-approved" label before auto-merge.
+            // The widened set (PR 1b) covers everything that defines or enforces the
+            // gate itself, so a change to the enforcement machinery can never slip
+            // through unreviewed. Deliberately NARROW: ordinary app/UI/doc/test/adapter
+            // changes match none of these and still auto-merge.
+            //
+            //   Enforcement DOMAIN      : validator.ts, orchestrator.ts, policy.ts
+            //   Enforcement TOOLING     : scripts/boundary-check.mjs, scripts/dep-hygiene.mjs
+            //                             (the deterministic gate scripts ONLY — NOT
+            //                              vendor-apps.sh or ordinary scripts)
+            //   Vendored enforcement    : apps/**/foundation/** (copies of the above)
+            //   The GATE ITSELF         : .github/workflows/*.yml (changing CI, agent-review,
+            //                             or this auto-merge policy IS a sensitive change)
+            //   Licensing / secrets     : LICENSE*, broker, secret/credential/.env
             const sensitivePatterns = [
               /(^|\/)src\/domain\/customization\/validator\.ts$/,
               /(^|\/)src\/domain\/customization\/orchestrator\.ts$/,
+              /(^|\/)src\/domain\/customization\/policy\.ts$/,
+              /(^|\/)scripts\/boundary-check\.mjs$/,
+              /(^|\/)scripts\/dep-hygiene\.mjs$/,
+              /(^|\/)apps\/.+\/foundation\/.+/,
+              /(^|\/)\.github\/workflows\/.+\.ya?ml$/,
               /broker/i,
               /(^|\/)LICENSE/i,
               /secret|credential|\.env(\.|$)/i,
