@@ -87,6 +87,12 @@ draw on your subscription. This adapter therefore **never reads, requires, embed
 an API key or any credential** — the login lives in your Claude Code setup, outside this
 repo.
 
+**Model + thinking level.** The adapter defaults to **Claude Haiku (latest)** at
+**`medium`** reasoning effort. These are exported constants (`DEFAULT_MODEL`,
+`DEFAULT_EFFORT`) and are passed through to the Agent SDK's `model` and `effort` options —
+one place to change, and overridable per-instance via the adapter config (`model`,
+`effort`). Bump to `sonnet` or a higher effort there when you want more.
+
 **One-time setup** (on your machine, once):
 
 ```bash
