@@ -15,4 +15,23 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/consistent-type-imports': 'error',
   },
+  overrides: [
+    {
+      // Type-aware linting for the foundation's OWN source + tests only.
+      // We deliberately enable the three specific type-aware rules the gate wants
+      // rather than `plugin:@typescript-eslint/recommended-type-checked`, whose
+      // bundled `require-await` false-positives on the test suite's async-generator
+      // mocks (async function* that yield a fixed array to satisfy an AsyncIterable
+      // interface contract, with no internal await — a legitimate, intentional shape).
+      files: ['src/**/*.ts', 'test/**/*.ts'],
+      parserOptions: {
+        project: ['./tsconfig.json'],
+        tsconfigRootDir: __dirname,
+      },
+      rules: {
+        '@typescript-eslint/no-floating-promises': 'error',
+        '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      },
+    },
+  ],
 };
