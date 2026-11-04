@@ -1,14 +1,28 @@
 name: Agent Review
 
 # Independent review gate for the auto-merge pipeline. Publishes an "agent-review" commit
-# status that auto-merge requires. Two layers:
-#   - Deterministic floor (this job): static boundary guardrails that can never be skipped.
-#   - Semantic layer: the `customization-boundary-reviewer` custom agent
-#     (.kiro/agents/) performs the full judgment-based review in-session / via a Crew
-#     webhook. When that reports FAIL, it sets the same status to failure, blocking merge.
+# status that auto-merge requires. TWO LAYERS, honest about what each does:
 #
-# This workflow is honest about scope: it enforces only what is mechanically checkable.
-# It can never relax CI; auto-merge independently requires CI ("verify") to be green.
+#   1. Deterministic floor (always-on, keyless, non-skippable):
+#        scripts/boundary-check.mjs — static boundary guardrails. Runs on every PR with
+#        NO secrets and NO network. This ALONE decides the status on the default path.
+#
+#   2. Semantic layer (model-backed, GATED behind a user-set secret):
+#        scripts/semantic-review.mjs runs the committed `customization-boundary-reviewer`
+#        agent (.kiro/agents/) against the PR diff. It runs ONLY when ANTHROPIC_API_KEY is
+#        present as a repo secret (the user sets it themselves). When absent, it degrades
+#        HONESTLY to floor-only — it does NOT fabricate an "AI reviewed and passed" result.
+#
+# HARD FLOOR: the semantic layer can turn a floor PASS into a BLOCK, but can NEVER turn a
+# floor FAILURE into success. Its own plumbing failing (no verdict) never blocks merge and
+# never fakes a PASS — the deterministic floor still decides.
+#
+# This workflow can NEVER relax CI; auto-merge independently requires CI ("verify") green.
+#
+# SECURITY: this uses the default `pull_request` event. GitHub does NOT expose repo secrets
+# to pull_request runs from FORKS, so fork PRs automatically take the no-key (floor-only)
+# path. We deliberately do NOT use `pull_request_target` — that would run with secrets in
+# the base-repo context against untrusted fork code (a known exfiltration footgun).
 
 on:
   pull_request:
@@ -19,7 +33,7 @@ permissions:
   statuses: write
 
 jobs:
-  deterministic-floor:
+  review:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,23 +42,84 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Static boundary guardrails
-        id: check
+      # ── Layer 1: deterministic floor (always runs, keyless). ──────────────
+      - name: Deterministic boundary floor
+        id: floor
+        continue-on-error: true
         run: node scripts/boundary-check.mjs
 
+      # ── Collect the PR diff for the semantic layer (base...head). ─────────
+      - name: Collect PR diff
+        if: always()
+        run: |
+          git fetch --no-tags origin \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}"
+          git diff --no-color \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" > /tmp/pr.diff || true
+          echo "diff bytes: $(wc -c < /tmp/pr.diff)"
+
+      # ── Layer 2: semantic, model-backed review. ───────────────────────────
+      # Runs on every PR, but the SCRIPT itself detects the absent secret and exits 0 with
+      # "no key present, deterministic floor only". When the key IS present it makes a real
+      # model call. The key is passed via env from Actions secrets; it is never echoed.
+      #   exit 0 = PASS (or honest no-key skip)
+      #   exit 1 = BLOCK (real model FAIL / blocker finding)
+      #   exit 2 = infrastructure (non-fatal; floor still decides)
+      - name: Semantic review (model-backed, gated on secret)
+        id: semantic
+        if: always()
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          node scripts/semantic-review.mjs /tmp/pr.diff
+          code=$?
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          # Never let this step's own exit fail the job: its result is folded into the
+          # status explicitly below. (exit 1 = BLOCK, exit 2 = infra; both handled there.)
+          exit 0
+
+      # ── Fold both layers into the single "agent-review" status. ───────────
+      # Floor is the hard floor: if it failed, status is failure regardless of anything.
+      # Else if the semantic layer returned BLOCK (exit 1 -> outcome 'failure'), status is
+      # failure. A semantic infrastructure error (exit 2) is NOT a block — it leaves the
+      # floor result standing. A no-key skip (exit 0) leaves the floor result standing.
       - name: Publish agent-review status
         if: always()
         uses: actions/github-script@v7
         with:
           script: |
-            const ok = '${{ steps.check.outcome }}' === 'success';
+            const floorOk = '${{ steps.floor.outcome }}' === 'success';
+            const semanticExit = Number('${{ steps.semantic.outputs.exit_code }}' || '0');
+
+            // Hard floor first.
+            let ok = floorOk;
+            let description;
+            if (!floorOk) {
+              ok = false;
+              description = 'Deterministic boundary floor: blocker(s) found (hard floor).';
+            } else if (semanticExit === 1) {
+              // Real model-backed BLOCK.
+              ok = false;
+              description = 'Semantic review BLOCK: reviewer returned FAIL / blocker finding.';
+            } else if (semanticExit === 2) {
+              // Semantic plumbing failed — never blocks; floor stands.
+              ok = true;
+              description = 'Floor passed; semantic layer unavailable (floor-only result).';
+            } else {
+              // Floor passed; semantic passed or honestly skipped (no key).
+              ok = true;
+              description = 'Floor passed (semantic layer: pass or no-key floor-only).';
+            }
+
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
               sha: context.payload.pull_request.head.sha,
               context: 'agent-review',
               state: ok ? 'success' : 'failure',
-              description: ok
-                ? 'Deterministic boundary floor passed (semantic agent layer may add findings)'
-                : 'Boundary guardrail blocker(s) found',
+              description,
             });
+            core.notice(`agent-review=${ok ? 'success' : 'failure'} :: ${description}`);
