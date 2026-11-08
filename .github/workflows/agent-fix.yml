@@ -1,0 +1,105 @@
+name: Agent Fix
+
+# INDEPENDENT FIX AGENT — the self-healing half of the pipeline (slice 3).
+#
+# When the CI ("verify") or Agent Review checks on a PR conclude FAILURE, this workflow
+# runs scripts/agent-fix.mjs to diagnose and — when safe and a model key is present —
+# push a bounded fix commit to the PR BRANCH. It is the counterpart to the review agent:
+# review BLOCKS bad changes, fix HEALS broken ones.
+#
+# Hard guarantees (enforced by the script, mirrored here):
+#   - It NEVER merges and NEVER relaxes CI. Auto-merge independently re-requires a green
+#     "verify"; this workflow only proposes fixes on the PR branch.
+#   - It NEVER edits enforcement/sensitive paths (validator/orchestrator/policy,
+#     boundary-check, dep-hygiene, apps foundation, workflows, broker, LICENSE, secrets).
+#     If a fix would need one, it refuses and asks for the human `human-approved` label.
+#   - BOUNDED: at most 2 fix attempts per PR (counted from `fix(agent):` commits). Past
+#     the cap it posts a "human needed" comment and stops — never an infinite loop.
+#   - KEYLESS-SAFE DEFAULT: with no ANTHROPIC_API_KEY it runs as an honest advisory no-op
+#     (posts a diagnosis, changes no code, exits green). The live fixer is gated behind a
+#     secret the USER sets. Fork PRs never receive secrets, so they stay advisory-only.
+#
+# It uses `workflow_run` (not `pull_request`) so it runs in the BASE repo context with the
+# write permissions and secret needed to push a fix — a fork's own PR workflow never has
+# these, which is exactly the trust boundary we want.
+
+on:
+  workflow_run:
+    workflows: ["CI", "Agent Review"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  statuses: read
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    # Only act when the triggering run FAILED. A successful run needs no healing.
+    if: github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Resolve target PR
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Resolve the PR from the workflow_run exactly as auto-merge.yml does.
+            const run = context.payload.workflow_run;
+            const prs = run.pull_requests;
+            if (!prs || !prs.length) {
+              core.notice('No PR associated with this run; nothing to fix.');
+              core.setOutput('skip', 'true');
+              return;
+            }
+            const got = await github.rest.pulls.get({
+              owner: context.repo.owner, repo: context.repo.repo, pull_number: prs[0].number });
+            const pr = got.data;
+            if (pr.state !== 'open' || pr.draft) {
+              core.notice(`PR #${pr.number} is not an open non-draft PR; skipping.`);
+              core.setOutput('skip', 'true');
+              return;
+            }
+            core.setOutput('skip', 'false');
+            core.setOutput('number', String(pr.number));
+            core.setOutput('headRef', pr.head.ref);
+            core.setOutput('headRepo', pr.head.repo ? pr.head.repo.full_name : '');
+            core.setOutput('baseRepo', pr.base.repo.full_name);
+
+      - name: Checkout PR head branch
+        if: steps.pr.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          # Check out the PR head branch itself so a fix commit lands on it. Full history
+          # so the attempt-counter can read prior fix(agent): commits.
+          ref: ${{ steps.pr.outputs.headRef }}
+          fetch-depth: 0
+          # Default GITHUB_TOKEN; it can push to branches in THIS repo. Fork PR branches
+          # live in the fork, so the script detects the fork and stays advisory (no push).
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ensure base ref is available
+        if: steps.pr.outputs.skip == 'false'
+        run: git fetch origin main:refs/remotes/origin/main
+
+      - uses: actions/setup-node@v4
+        if: steps.pr.outputs.skip == 'false'
+        with:
+          node-version: '20'
+
+      - name: Run bounded fix agent
+        if: steps.pr.outputs.skip == 'false'
+        env:
+          # gh CLI auth for comments/labels.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PR_NUMBER: ${{ steps.pr.outputs.number }}
+          GH_PR_HEAD_REF: ${{ steps.pr.outputs.headRef }}
+          GH_PR_HEAD_REPO: ${{ steps.pr.outputs.headRepo }}
+          GH_BASE_REPO: ${{ steps.pr.outputs.baseRepo }}
+          GH_FAILED_WF: ${{ github.event.workflow_run.name }}
+          # Live fixer key — OPTIONAL. Absent on a fresh clone and on fork PRs, so the
+          # default path is the honest advisory no-op. The user sets this secret to enable
+          # real fixes. Never printed or logged by the script.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/agent-fix.mjs
