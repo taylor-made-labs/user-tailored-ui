@@ -151,6 +151,52 @@ A new app implements the data/actions/policy/preferences contracts and wires the
 ports; it does **not** copy either example app. Setup, extension points, supported limits,
 and offline-vs-model-connected capabilities will be documented here.
 
+## CI/CD pipeline (layered merge gate)
+
+Merges are automated by CI/CD with an independent review-agent gate, so they do **not**
+wait on a human — **except** a narrow set of security-sensitive paths, which still require
+explicit human approval. The pipeline runs as ordered layers, cheap and deterministic
+first, model-backed and optional last. Full spec:
+[`.kiro/specs/cicd-pipeline.md`](.kiro/specs/cicd-pipeline.md).
+
+```
+push / PR
+  → Layer 1  deterministic CI floor       (verify + app matrix)     keyless, gating
+  → Layer 2  independent review agent      (agent-review status)     floor always on; model layer optional
+  → Layer 3  independent bounded fix agent (fix(agent): commits)     keyless no-op default; optional model layer
+  → Layer 4  auto-merge                    (squash on green + PASS)  human-approved label = only hold
+```
+
+| Layer | Where | What runs | Automatic? |
+|---|---|---|---|
+| **1. CI floor** | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | `verify` (`npm ci` → `scripts/dep-hygiene.mjs` → typecheck → lint → test → build) + `app (planner)` / `app (inventory)` matrix | Yes — keyless, green on a fresh clone |
+| **2. Review agent** | [`.github/workflows/agent-review.yml`](.github/workflows/agent-review.yml) | Deterministic floor `scripts/boundary-check.mjs` posts the `agent-review` status; optional semantic agent ([`.kiro/agents/customization-boundary-reviewer.json`](.kiro/agents/customization-boundary-reviewer.json)) adds judgment and can block | Floor always on; model layer landed as **PR #7** (awaiting `human-approved`) |
+| **3. Fix agent** | bounded self-heal (max 2) | Proposes `fix(agent):` commits on the PR branch only; refuses sensitive paths; never merges or relaxes CI | Keyless advisory no-op by default; model layer landed as **PR #8** (awaiting `human-approved`) |
+| **4. Auto-merge** | [`.github/workflows/auto-merge.yml`](.github/workflows/auto-merge.yml) | Squash-merges when `verify` green **and** `agent-review` PASS **and** (no sensitive path **or** `human-approved` label) | Yes — keyless |
+
+**Automatic vs. held for a human.** Ordinary app / UI / doc / test / adapter changes match
+no sensitive path and auto-merge on green. The **only** hold is the `human-approved` label,
+and it applies only to a narrow sensitive set: the enforcement domain
+(`src/domain/customization/validator.ts`, `orchestrator.ts`, `policy.ts`), the enforcement
+tooling (`scripts/boundary-check.mjs`, `scripts/dep-hygiene.mjs`), vendored enforcement
+(`apps/**/foundation/**`), the gate itself (`.github/workflows/*.yml`), and
+licensing / secret paths (`LICENSE*`, `broker`, `secret` / `credential` / `.env`). The
+review and fix agents can **never** relax CI — auto-merge independently requires `verify` to
+be green.
+
+**What is real vs. optional.** Routine CI (`verify`, the app matrix, `dep-hygiene`,
+`boundary-check`, auto-merge) is **keyless, deterministic, and green on a fresh clone with
+no secrets**. The model-backed halves of Layers 2 and 3 are **optional**: with no key
+present they degrade honestly to the deterministic floor (reviewer) or a logged no-op (fix
+agent), and that state is labeled, not hidden. Fork PRs never get secret access, so the
+model-backed layers degrade to the floor there too.
+
+**Enabling the optional model-backed layers.** The deterministic pipeline needs nothing. To
+turn on the live reviewer and fix agent, add a repository secret named **`ANTHROPIC_API_KEY`**
+in **GitHub → Settings → Secrets and variables → Actions** (you set it yourself — no agent
+or workflow ever stores a credential), then merge PR #7 and PR #8 (both need the
+`human-approved` label first, because they touch `.github/workflows/`).
+
 ## Licensing
 
 Dual-licensed under either **MIT** ([LICENSE-MIT](LICENSE-MIT)) or
