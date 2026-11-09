@@ -8,9 +8,10 @@ This repo owns the reusable **skeleton**, the **shared customization** logic, th
 **integration contracts**, and is the **main hackathon submission**. It is demonstrated by
 two distinct applications: a **Planner** and an **Inventory** app.
 
-**Status:** early scaffolding. This README documents intent and the architecture we are
-building toward; sections marked _(planned)_ are not yet implemented. We do not overstate
-reliability — see [Limitations](#limitations).
+**Status:** working demo. Both apps build, test and run from a fresh clone, with customization
+history stored in IndexedDB-backed Git. Sections marked _(planned)_ are not yet implemented.
+We do not overstate reliability — see [Limitations](#limitations) and
+[What is real vs. stubbed](#what-is-real-vs-stubbed).
 
 ## The idea
 
@@ -38,9 +39,13 @@ See the full model in [`.kiro/steering/10-customization-boundary.md`](.kiro/stee
     offline. The CI default. OpenAI/Codex later.
 - **Storage port** — over [`browser-repos`](https://github.com/taylor-made-labs/browser-repos)
   (IndexedDB-backed Git) for **customization history**, scoped per user+app, separate from
-  business data and creator-owned source.
-- **UI capability port** — over the [TailoredUI](https://github.com/taylor-made-labs/TailoredUI)
-  fork. App code never imports the fork directly.
+  business data and creator-owned source. **Wired in both apps** (PRs #11, #12): the browser
+  entry points use `BrowserReposHistoryStore`; the in-memory double is used by tests and the
+  headless `demo.ts`.
+- **UI capability port** — an interface (`src/ports/ui-capability.ts`) meant to sit over the
+  [TailoredUI](https://github.com/taylor-made-labs/TailoredUI) fork. App code never imports
+  the fork directly. **See [What is real vs. stubbed](#what-is-real-vs-stubbed): today the
+  demo path does not use the fork.**
 
 Credentials support **BYOK** (user supplies their key, client-side only) and **owner-managed
 subscription** (owner backend holds the key). Secrets never enter the browser bundle, repo,
@@ -72,6 +77,16 @@ Each folder has a README recording its exact source commit and the one command t
 reproduce/update it ([`scripts/vendor-apps.sh`](scripts/vendor-apps.sh)). CI builds and
 tests both copies on every push (`.github/workflows/ci.yml`, job **apps**), so the green
 checks on a fresh clone are the proof they run.
+
+## What is real vs. stubbed
+
+| Piece | State |
+|---|---|
+| Policy, validator, orchestrator (enforcement) | **Real**, tested per invariant class |
+| Customization history (save / reopen / undo) | **Real**: git commits in IndexedDB via `browser-repos`. The "reload" in tests is simulated with `fake-indexeddb` under Node; no automated real-browser run proves it |
+| Inference in demo and CI | **Test double**, labeled `simulated: true`. The Claude adapter is real code, optional, and not exercised in CI |
+| UI capability / TailoredUI fork | **Not on the demo path.** Each app ships its own in-repo `TailoredUiCapabilityAdapter`. It resolves components to data-only descriptors and React draws them. It does **not** import the TailoredUI fork. The fork is credited upstream (see [NOTICE](NOTICE)); the port keeps it swappable, but no fork code runs in the demo |
+| `browser-repos` in the apps | A vendored tarball built from `browser-repos` commit `369ab3d` (slice 5), not its current `main`. See each `apps/*/README.md` |
 
 ## Claude subscription adapter (real agent, no API key)
 
@@ -134,16 +149,28 @@ real, and never the reverse.**
   typecheck/lint/CI — so CI stays deterministic and keyless. Run it locally after
   `npm run build` and a `claude` login to verify the real path.
 
-## Getting started _(planned)_
+## Getting started
 
-Build/test is verified in **GitHub Actions CI** (the dev sandbox has no public network).
-Once scaffolded:
+The root package is the shared foundation (library + tests). The runnable web apps are in
+`apps/`. Needs Node 20+ and network access for `npm ci`. Checked from a fresh clone on
+Node 20 and 24; see [`docs/fresh-clone-check.md`](docs/fresh-clone-check.md) for what was
+and was not verified.
 
 ```bash
-npm ci
-npm run test     # deterministic — uses the labeled test-double inference adapter
-npm run dev      # runnable demo — uses the real agent adapter (needs a key; see docs)
+git clone https://github.com/taylor-made-labs/user-tailored-ui.git && cd user-tailored-ui
+
+# Foundation: typecheck, lint, tests, build. Keyless; uses the labeled test-double.
+npm ci && npm run typecheck && npm run lint && npm test && npm run build
+
+# Each app (apps/planner or apps/inventory):
+cd apps/planner
+npm ci && npm test && npm run build
+npx tsx src/demo.ts     # headless end-to-end demo, offline, no secrets
+npm run dev             # web app; Vite prints the local URL
 ```
+
+There is no `dev` script at the repo root; run it inside an app folder. The demo uses the
+labeled test-double, never a real model.
 
 ## Adopting the foundation in a new app _(planned, documented as contracts land)_
 

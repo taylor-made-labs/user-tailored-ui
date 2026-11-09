@@ -15,7 +15,12 @@ Each retains its own license; see the respective project for full terms.
 
 - TailoredUI (fork of https://github.com/TailoredUI/TailoredUI)
     License: MIT. Copyright (c) 2023 Aman Singh.
-    Used as the reusable UI capability layer (consumed behind an interface).
+    Credited as the upstream of our fork. Not used on the current demo path: the apps use
+    an in-repo adapter behind the UiCapability port and do not import the fork.
+
+- browser-repos (https://github.com/taylor-made-labs/browser-repos)
+    Our own library, MIT OR Apache-2.0. Both apps bundle a compiled build of it as a
+    vendored tarball (apps/*/vendor/). It is not published to npm.
 
 - isomorphic-git (https://github.com/isomorphic-git/isomorphic-git)
     License: MIT. Pure-JS Git implementation used by browser-repos.

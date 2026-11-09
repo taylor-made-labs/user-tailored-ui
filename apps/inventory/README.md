@@ -14,6 +14,28 @@
 | Source commit (SHA) | `0ec29fa3c7c1842aa90356b3b292aea085052aa4` |
 | Copied by | [`scripts/vendor-apps.sh`](../../scripts/vendor-apps.sh) (repo root) |
 
+### Local changes on top of the pinned commit
+
+This copy is **not** a pure copy of the pin. PR #12 added, after vendoring:
+
+- `src/adapters/history-browser-repos.ts` (customization history stored as git commits in
+  IndexedDB) and its wiring in `src/main.tsx` / `src/App.tsx`;
+- `test/history-persistence.test.ts` and `test/setup.ts`;
+- the `@taylor-made-labs/browser-repos` dependency, as `vendor/taylor-made-labs-browser-repos-0.1.0.tgz`.
+
+Pin is current: it is the head of the source repo's `main` as of 2026-11-09.
+
+**`browser-repos` pin.** The tarball's `dist/` is byte-identical to a fresh `npm ci && npm run build`
+of [browser-repos](https://github.com/taylor-made-labs/browser-repos) at commit
+`369ab3d` (slice 5). Checked 2026-11-09. It is **older than** browser-repos `main`
+(`98fb9ad`, slices 6 and 7), so the public-API-surface and remote-sync slices are not in this
+app. The tarball's `package.json` was written by hand; it is not the output of `npm pack`.
+
+**Re-vendoring caveat.** `scripts/vendor-apps.sh` deletes and re-copies this folder from the
+source repo, which would **remove the changes above**. The "one command to reproduce" below
+reproduces the pinned source only, not the history wiring. Re-apply PR #12 after
+running it. This is a known gap (see `.kiro/specs/submission/tasks.md`).
+
 ## How to reproduce / update this copy
 
 From the repo root:
