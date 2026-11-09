@@ -17,11 +17,13 @@
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0"
   },
   "dependencies": {
+    "@taylor-made-labs/browser-repos": "file:vendor/taylor-made-labs-browser-repos-0.1.0.tgz",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@types/node": "20.14.9",
+    "fake-indexeddb": "6.0.0",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
     "@typescript-eslint/eslint-plugin": "7.16.0",
