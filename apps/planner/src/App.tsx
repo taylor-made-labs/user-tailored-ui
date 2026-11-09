@@ -10,16 +10,24 @@
 
 import type { TaskStore } from './ports/task-store.js';
 import { usePlanner } from './ui/usePlanner.js';
+import type { PlannerCustomizationDeps } from './customization/service.js';
 import { AddTask, TaskList } from './ui/components.js';
 import { AgentPanel } from './ui/AgentPanel.js';
 
 export interface AppProps {
   readonly userId: string;
   readonly taskStore: TaskStore;
+  /** Customization-store wiring (history/inference). `main.tsx` injects the
+   *  browser-repos-backed history store here; omit for the in-memory default. */
+  readonly customizationDeps?: Omit<PlannerCustomizationDeps, 'userId'>;
 }
 
 export function App(props: AppProps): JSX.Element {
-  const planner = usePlanner({ userId: props.userId, taskStore: props.taskStore });
+  const planner = usePlanner({
+    userId: props.userId,
+    taskStore: props.taskStore,
+    ...(props.customizationDeps ? { customizationDeps: props.customizationDeps } : {}),
+  });
   const isAgenda = planner.view.components.some((c) => c.componentId === 'agenda');
 
   return (

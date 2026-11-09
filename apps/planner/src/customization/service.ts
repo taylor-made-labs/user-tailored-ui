@@ -4,8 +4,9 @@
  * Wires the foundation `CustomizationOrchestrator` with:
  *   - the Planner `CreatorPolicy`,
  *   - the labeled `TestDoubleInferenceAdapter` BY DEFAULT (offline, no key),
- *   - a `CustomizationHistoryStore` (in-memory double by default; the browser-repos /
- *     IndexedDB-backed store is injectable later through the same port).
+ *   - a `CustomizationHistoryStore`: the app (`main.tsx`) injects the real
+ *     browser-repos / IndexedDB-git-backed store; the in-memory double is the
+ *     fallback default here and is used by the deterministic Node tests.
  *
  * It exposes the enforced flow — propose -> preview -> apply/save -> reopen -> undo —
  * over a fixed user+app history scope, so the React layer stays thin. The inference
