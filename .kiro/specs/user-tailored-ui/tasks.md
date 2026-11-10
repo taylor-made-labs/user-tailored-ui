@@ -31,9 +31,18 @@ Requirement ids refer to `requirements.md`.
 - [ ] **T1.3 [P] Cross-OS packaging check.** Extend the pack/install/build check to
   `ubuntu`, `macos`, `windows` runners. **ASSUMPTION A18:** Node 20 on all three.
   _Check:_ CI matrix shows 3 green jobs. _(R7.2)_
-- [ ] **T1.4 Hoist the duplicated history adapter into the foundation.** One
+- [x] **T1.4 Hoist the duplicated history adapter into the foundation.** One
   `BrowserReposHistory`; both apps import it.
   _Check:_ grep finds one implementation; both apps' history tests pass. _(R1, design §5)_
+  _Done:_ one source `src/adapters/history/browser-repos.ts`, exported from `src/index.ts`
+  (options `repoPrefix` + `author`, so existing repo ids are unchanged). Each app holds a
+  vendored copy at `src/foundation/adapters/history/browser-repos.ts`, like every other
+  foundation file (A17 removes the copies). App adapters deleted; `main.tsx` and tests import
+  from `ports/foundation.ts`. Root: 45 tests; planner 26; inventory 28; typecheck, lint, build
+  pass in all three. Root gained `test/setup.ts` (fake-indexeddb, Node 20 navigator pin).
+  **Flag:** root declares browser-repos as a `peerDependency` (file: tarball in `vendor/`)
+  because `scripts/dep-hygiene.mjs` rejects `file:` in `dependencies`; that guard was not
+  edited. Needs a human decision. Also `vendor-apps.sh` now keeps all of `src/foundation/`.
 
 ## Phase 2 — Creator rules as a config file (foundation)
 

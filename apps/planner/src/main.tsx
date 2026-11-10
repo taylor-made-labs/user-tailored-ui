@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
 import { IndexedDbTaskStore } from './adapters/task-store-indexeddb.js';
-import { BrowserReposHistoryStore } from './adapters/history-browser-repos.js';
+import { BrowserReposHistoryStore } from './ports/foundation.js';
 
 // Business tasks persist in IndexedDB (never localStorage/chrome.storage).
 const taskStore = new IndexedDbTaskStore();
@@ -12,7 +12,10 @@ const taskStore = new IndexedDbTaskStore();
 // reload. This is the headline "state lives in a browser-based git repo" claim made
 // real — it replaces the in-memory double, which now serves tests only. The repo is
 // separate from the task database above, keeping business data and customization apart.
-const historyStore = new BrowserReposHistoryStore();
+const historyStore = new BrowserReposHistoryStore({
+  repoPrefix: 'planner-history',
+  author: { name: 'user-tailored-planner', email: 'history@user-tailored-planner.local' },
+});
 
 // A single local user for this slice. Multi-user accounts/auth are out of scope;
 // user separation is demonstrated via scoped ids (here and in the stores).

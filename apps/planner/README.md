@@ -20,7 +20,7 @@
 
 This copy is **not** a pure copy of the pin. PR #11 added, after vendoring:
 
-- `src/adapters/history-browser-repos.ts` (customization history stored as git commits in
+- `src/foundation/adapters/history/browser-repos.ts` (the shared foundation adapter: customization history stored as git commits in
   IndexedDB) and its wiring in `src/main.tsx` / `src/App.tsx`;
 - `test/history-persistence.test.ts` and `test/setup.ts`;
 - the `@taylor-made-labs/browser-repos` dependency, as `vendor/taylor-made-labs-browser-repos-0.1.0.tgz`.
