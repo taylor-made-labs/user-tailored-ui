@@ -8,6 +8,7 @@
 # runnable tree into apps/<app>/ so a fresh clone of THIS repo builds and tests both
 # apps with no access to the source repos.
 #
+# It never deletes anything in apps/<app>/ and skips the KEEP_LIST of app-owned files.
 # It is deliberately simple and deterministic: clone the pinned commit, copy the
 # runnable tree, drop only non-runtime infra (.git, node_modules, dist, the app's own
 # CI workflow and its LICENSE/.env files — see "What is excluded" below).
@@ -71,6 +72,28 @@ RSYNC_EXCLUDES=(
   --exclude='.env.example'
 )
 
+# App-owned files: wiring this repo added AFTER vendoring (browser-repos history adapter,
+# its dependency, its tests, and the files that import it). They never exist in the pinned
+# source, or differ from it on purpose, so a re-vendor must not touch them. Anchored with
+# a leading / so only the app-root path matches. Add a line here for every new app-owned file.
+# shortcut: package.json / package-lock.json are kept, so upstream dependency changes are
+# not pulled in automatically; merge them by hand. Upgrade: the workspace package (A17).
+KEEP_LIST=(
+  --exclude='/vendor/'
+  --exclude='/creator-policy.json'
+  --exclude='/package.json'
+  --exclude='/package-lock.json'
+  --exclude='/README.md'
+  --exclude='/src/adapters/history-browser-repos.ts'
+  --exclude='/src/main.tsx'
+  --exclude='/src/App.tsx'
+  --exclude='/src/customization/service.ts'
+  --exclude='/vitest.config.ts'
+  --exclude='/test/setup.ts'
+  --exclude='/test/history-persistence.test.ts'
+  --exclude='/test/browser-repos-pin.test.ts'
+)
+
 vendor_one() {
   local name="$1" repo="$2" ref="$3"
   echo ">> Vendoring '$name' from $repo @ $ref"
@@ -78,9 +101,9 @@ vendor_one() {
   git -C "$TMP/$name" checkout --quiet "$ref"
   local sha; sha="$(git -C "$TMP/$name" rev-parse HEAD)"
   local dest="$REPO_ROOT/apps/$name"
-  rm -rf "$dest"
   mkdir -p "$dest"
-  rsync -a "${RSYNC_EXCLUDES[@]}" "$TMP/$name/" "$dest/"
+  # No --delete and no rm: files that exist only here (app-owned wiring) are never removed.
+  rsync -a "${RSYNC_EXCLUDES[@]}" "${KEEP_LIST[@]}" "$TMP/$name/" "$dest/"
   echo "   copied to apps/$name/ (source commit $sha)"
 }
 

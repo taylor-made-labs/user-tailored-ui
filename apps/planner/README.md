@@ -33,10 +33,9 @@ Pin is current: that commit's tree is byte-identical to the source repo's `main`
 `sha512-IRvAlnsB+Po66BRzRggTALxirk6v0wzJBUSNn+ltTnu9mzB1zCOhI/upaspF8UdC7xwE+rImOQlMSq+IGsZy9Q==`.
 `test/browser-repos-pin.test.ts` imports `GitHubSyncTarget`, which the old `369ab3d` build lacked.
 
-**Re-vendoring caveat.** `scripts/vendor-apps.sh` deletes and re-copies this folder from the
-source repo, which would **remove the changes above**. The "one command to reproduce" below
-reproduces the pinned source only, not the history wiring. Re-apply PR #11 after
-running it. This is a known gap (see `.kiro/specs/submission/tasks.md`).
+**Re-vendoring.** `scripts/vendor-apps.sh` never deletes anything here and skips a keep-list
+of app-owned files (the history adapter, `vendor/`, the files that import it, `package.json`,
+this README). Edit `KEEP_LIST` in the script when you add another app-owned file.
 
 ## How to reproduce / update this copy
 
