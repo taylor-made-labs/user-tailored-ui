@@ -1,0 +1,13 @@
+{
+  "name": "user-tailored-ui-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Real-Chromium Playwright suite for the Planner and Inventory apps (spec T4.3).",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "20.14.9"
+  }
+}

@@ -91,9 +91,23 @@ Requirement ids refer to `requirements.md`.
   branches, clean commits, pinned by SHA, listed in README.
   _Check:_ the app renders at least one component through the fork in a Playwright run;
   fork `git log` shows only our scoped commits. _(R6.2–R6.5)_
-- [ ] **T4.3 Playwright suite on both apps** (reload persistence, undo, rejection UI) with
+- [x] **T4.3 Playwright suite on both apps** (reload persistence, undo, rejection UI) with
   a stub broker, in real Chromium.
   _Check:_ CI job green; trace artifacts uploaded. _(R7.1)_
+  _Evidence (partial, honest):_ `e2e/` suite runs both built apps via `vite preview` in real
+  Chromium (`cd e2e && npm ci && npx playwright test`): 10 pass, 4 `fixme`, 0 unexpected
+  failures. Inference is the labeled test double (no key here); no product path added.
+  **Not yet met:** CI job + trace upload (workflow edit is sensitive; separate PR).
+  **Real defects found (tests are `test.fail`/`fixme` until fixed, flip them when fixed):**
+  - **D1 (blocker):** in the shipped build, Apply fails: `ReferenceError: Buffer is not defined`
+    from isomorphic-git while staging `entries/000000.json`. The view never changes and
+    nothing is saved. Only a test-side `window.Buffer` shim makes it work. Fix in
+    browser-repos (bundle a Buffer polyfill) or the apps' vite config.
+  - **D2:** with Buffer shimmed, Apply updates the view but a reload within ~1s loses the
+    change (write not yet durable). Reload after 1.5s keeps it. Belongs with T4.4.
+  - **D3:** undo lists saved states only; there is no way back to the baseline view.
+  - T3.7 per-part verdict UI is absent; rejection shows rule id + message only (tested).
+  - The default product agent is still the test double (T3.5).
 - [ ] **T4.4 Durability evidence for IndexedDB-git.** Reload mid-write and kill-tab test;
   record results in `docs/DURABILITY.md`.
   _Check:_ doc has results and any limits stated plainly. _(steering 60)_
