@@ -12,6 +12,7 @@ import type { PlannerState } from './usePlanner.js';
 import { PlannerControls } from '../customization/policy.js';
 
 const QUICK_PICKS: readonly { label: string; utterance: string }[] = [
+  { label: 'Mixed: good + bad parts', utterance: 'mixed request with a huge font' },
   { label: 'Focused daily agenda (valid)', utterance: 'make it a focused daily agenda' },
   { label: 'Remove complete control (reject)', utterance: 'remove complete button' },
   { label: 'Giant font 3x (reject)', utterance: 'make the font huge' },
@@ -105,6 +106,18 @@ export function AgentPanel(props: { planner: PlannerState }): JSX.Element {
               ),
             )}
           </p>
+          <ul aria-label="Proposal parts" style={{ margin: '6px 0', paddingLeft: 18, fontSize: '0.85rem' }}>
+            {planner.preview.parts.map((p, i) => (
+              <li key={i}>
+                <strong>{p.ok ? 'Applied' : 'Not applied'}</strong> — {p.kind} <code>{p.subject}</code>
+                {!p.ok && p.ruleId && (
+                  <>
+                    {' '}(rule <code>{p.ruleId}</code>): {p.message}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
           {planner.preview.rationale && (
             <p style={{ margin: '6px 0', fontSize: '0.8rem', opacity: 0.8 }}>
               “{planner.preview.rationale}”

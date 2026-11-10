@@ -37,7 +37,12 @@ export interface RejectionReason {
 
 export type ValidationResult =
   | { readonly ok: true; readonly view: ViewDescriptor }
-  | { readonly ok: false; readonly reasons: readonly RejectionReason[] };
+  | {
+      readonly ok: false;
+      readonly reasons: readonly RejectionReason[];
+      /** Per-part verdicts, present when produced by validateProposalParts. */
+      readonly parts?: readonly PartVerdict[];
+    };
 
 /** Reserved token keys that, if present in a proposal, indicate policy-tampering intent. */
 const POLICY_RESERVED_KEYS = new Set([
@@ -200,4 +205,210 @@ export function validateProposal(
     actions: resultActions,
   };
   return { ok: true, view };
+}
+
+// ---------------------------------------------------------------------------
+// Partial apply (spec T2.5, A1): per-part verdicts.
+// ---------------------------------------------------------------------------
+
+/**
+ * Verdict for one part of a proposal (one setting, component, action, or the control set).
+ * `ruleId` is the invariant that failed; `message` is the plain sentence for the user.
+ */
+export interface PartVerdict {
+  readonly kind: 'token' | 'component' | 'control' | 'action';
+  readonly subject: string;
+  readonly ok: boolean;
+  readonly ruleId?: InvariantKind;
+  readonly message?: string;
+}
+
+export type PartialValidationResult =
+  | { readonly ok: true; readonly view: ViewDescriptor; readonly parts: readonly PartVerdict[] }
+  | {
+      readonly ok: false;
+      readonly reasons: readonly RejectionReason[];
+      readonly parts: readonly PartVerdict[];
+    };
+
+interface Part {
+  readonly kind: PartVerdict['kind'];
+  readonly subject: string;
+  rejected?: RejectionReason;
+}
+
+/**
+ * Validate a proposal part by part. Valid parts form the resulting view (applied
+ * together as one step); invalid parts are rejected with their rule id and sentence.
+ * Policy tampering rejects the WHOLE proposal. If no part is valid, or the valid parts
+ * change nothing, the result is a rejection. The result view is re-validated as a whole
+ * (fixpoint, bounded by part count) so no part can make another part invalid.
+ * Pure and deterministic; nothing here executes proposal-supplied code.
+ */
+export function validateProposalParts(
+  policy: CreatorPolicy,
+  base: ViewDescriptor,
+  proposal: CustomizationProposal,
+): PartialValidationResult {
+  const tokens = proposal.tokens ?? {};
+  const tokenKeys = Object.keys(tokens);
+
+  // Tampering: refuse the whole proposal, marking every part.
+  if (tokenKeys.some((k) => POLICY_RESERVED_KEYS.has(k))) {
+    const whole = validateProposal(policy, base, proposal);
+    const reasons = whole.ok ? [] : whole.reasons;
+    const refused = (kind: PartVerdict['kind'], subject: string): PartVerdict => {
+      const t = reasons.find(
+        (r) => r.invariant === InvariantKind.PolicyTampering && r.subject === subject,
+      );
+      return {
+        kind,
+        subject,
+        ok: false,
+        ruleId: InvariantKind.PolicyTampering,
+        message:
+          t?.message ??
+          'Not applied: the whole request was refused because it tried to change the rules.',
+      };
+    };
+    return {
+      ok: false,
+      reasons,
+      parts: [
+        ...tokenKeys.map((k) => refused('token', k)),
+        ...(proposal.components ?? []).map((c) => refused('component', c.componentId)),
+        ...(proposal.actions ?? []).map((a) => refused('action', a)),
+      ],
+    };
+  }
+
+  const parts: Part[] = [];
+  const add = (p: Part): Part => {
+    parts.push(p);
+    return p;
+  };
+  const tokenParts = tokenKeys.map((key) => {
+    const rule = policy.tokenRules[key];
+    const rejected: RejectionReason | null = rule
+      ? checkTokenValue(key, tokens[key] as TokenValue, rule)
+      : {
+          invariant: InvariantKind.UnknownToken,
+          subject: key,
+          message: `Token "${key}" is not an overridable token under the current policy.`,
+        };
+    return add({ kind: 'token', subject: key, ...(rejected ? { rejected } : {}) });
+  });
+  const compParts = (proposal.components ?? []).map((c) =>
+    add({
+      kind: 'component',
+      subject: c.componentId,
+      ...(policy.allowedComponents.includes(c.componentId)
+        ? {}
+        : {
+            rejected: {
+              invariant: InvariantKind.DisallowedComponent,
+              subject: c.componentId,
+              message: `Component "${c.componentId}" is not on the approved component list.`,
+            },
+          }),
+    }),
+  );
+  const actionParts = (proposal.actions ?? []).map((a) =>
+    add({
+      kind: 'action',
+      subject: a,
+      ...(policy.allowedActions.includes(a)
+        ? {}
+        : {
+            rejected: {
+              invariant: InvariantKind.DisallowedAction,
+              subject: a,
+              message: `Action "${a}" is not permitted by the current policy.`,
+            },
+          }),
+    }),
+  );
+  const controlParts: Part[] = [];
+  if (proposal.controls) {
+    const ids = new Set(proposal.controls.map((c) => c.controlId));
+    const missing = policy.requiredControls.filter((r) => !ids.has(r));
+    if (missing.length === 0) controlParts.push(add({ kind: 'control', subject: 'controls' }));
+    for (const m of missing) {
+      controlParts.push(
+        add({
+          kind: 'control',
+          subject: m,
+          rejected: {
+            invariant: InvariantKind.MissingRequiredControl,
+            subject: m,
+            message: `Required control "${m}" must remain present and operable.`,
+          },
+        }),
+      );
+    }
+  }
+
+  // Build the candidate from accepted parts only; re-validate the whole result.
+  const build = (): { view: ViewDescriptor | null; fail: readonly RejectionReason[] } => {
+    const okTokens: Record<string, TokenValue> = {};
+    for (const p of tokenParts) if (!p.rejected) okTokens[p.subject] = tokens[p.subject] as TokenValue;
+    const comps = (proposal.components ?? []).filter((_, i) => !compParts[i]?.rejected);
+    const acts = (proposal.actions ?? []).filter((_, i) => !actionParts[i]?.rejected);
+    const controlsOk = proposal.controls !== undefined && controlParts.every((p) => !p.rejected);
+    // If every proposed item was rejected, keep the base set rather than an empty one.
+    const cand: CustomizationProposal = {
+      tokens: okTokens,
+      ...(proposal.components && (comps.length > 0 || proposal.components.length === 0)
+        ? { components: comps }
+        : {}),
+      ...(proposal.actions && (acts.length > 0 || proposal.actions.length === 0)
+        ? { actions: acts }
+        : {}),
+      ...(controlsOk ? { controls: proposal.controls as readonly ControlRef[] } : {}),
+    };
+    const res = validateProposal(policy, base, cand);
+    return { view: res.ok ? res.view : null, fail: res.ok ? [] : res.reasons };
+  };
+
+  let built = build();
+  for (let i = 0; i <= parts.length && built.view === null; i++) {
+    // Reject any still-accepted part named by the whole-view failure; stop if none match.
+    let changed = false;
+    for (const r of built.fail) {
+      for (const p of parts) {
+        if (!p.rejected && p.subject === r.subject) {
+          p.rejected = r;
+          changed = true;
+        }
+      }
+    }
+    if (!changed) break;
+    built = build();
+  }
+
+  const verdicts: PartVerdict[] = parts.map((p) =>
+    p.rejected
+      ? {
+          kind: p.kind,
+          subject: p.subject,
+          ok: false,
+          ruleId: p.rejected.invariant,
+          message: p.rejected.message,
+        }
+      : { kind: p.kind, subject: p.subject, ok: true },
+  );
+  const rejectedReasons = parts.flatMap((p) => (p.rejected ? [p.rejected] : []));
+
+  if (built.view === null) {
+    return { ok: false, reasons: built.fail, parts: verdicts };
+  }
+  const applied = parts.length - rejectedReasons.length;
+  if (
+    rejectedReasons.length > 0 &&
+    (applied === 0 || JSON.stringify(built.view) === JSON.stringify(base))
+  ) {
+    // Nothing valid to apply (or the valid parts change nothing): reject, keep the view.
+    return { ok: false, reasons: rejectedReasons, parts: verdicts };
+  }
+  return { ok: true, view: built.view, parts: verdicts };
 }

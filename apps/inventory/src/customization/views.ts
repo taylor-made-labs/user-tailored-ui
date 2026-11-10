@@ -103,6 +103,7 @@ export const violationProposals: Readonly<Record<ViolationId, CustomizationPropo
   'non-approved-component': {
     components: [
       { componentId: InventoryComponents.Grid },
+      { componentId: InventoryComponents.ItemCard },
       { componentId: 'kanban' },
     ],
     rationale: 'Add a kanban board.',

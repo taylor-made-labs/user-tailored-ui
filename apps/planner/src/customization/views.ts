@@ -93,6 +93,7 @@ export const violationProposals: Readonly<Record<ViolationId, CustomizationPropo
   'non-approved-component': {
     components: [
       { componentId: PlannerComponents.Board },
+      { componentId: PlannerComponents.TaskCard },
       { componentId: 'banner-ad' },
     ],
     rationale: 'Add a promo banner.',
