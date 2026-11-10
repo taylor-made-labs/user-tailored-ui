@@ -1,0 +1,14 @@
+{
+  "$schema": "./src/foundation/schemas/creator-policy.v1.schema.json",
+  "schemaVersion": "1.0.0",
+  "policyVersion": "1.0.0",
+  "allowedActions": ["task.create", "task.edit", "task.reorder", "task.complete"],
+  "requiredControls": [
+    { "id": "complete-task", "why": "Users must always be able to finish a task." }
+  ],
+  "allowedComponents": ["board", "agenda", "task-card"],
+  "tokens": {
+    "fontScale": { "type": "number", "min": 1, "max": 2 },
+    "density": { "type": "enum", "values": ["compact", "comfortable"] }
+  }
+}

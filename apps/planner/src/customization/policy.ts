@@ -14,7 +14,8 @@
  *                 density is an enum of { compact, comfortable }
  */
 
-import type { CreatorPolicy } from '../ports/foundation.js';
+import { JsonPolicySource } from '../ports/foundation.js';
+import policyJson from '../../creator-policy.json';
 
 /** Stable action ids the Planner domain exposes. */
 export const PlannerActions = {
@@ -38,30 +39,9 @@ export const PlannerControls = {
   AddTask: 'add-task',
 } as const;
 
-export const PLANNER_POLICY_VERSION = '1.0.0';
-
 /**
- * The Planner policy. `fontScale` minimum of 1 is the ACCESSIBILITY FLOOR: a proposal
- * may enlarge up to 2x but may never shrink text below the shipped baseline.
+ * The planner policy, loaded from `creator-policy.json` (the creator edits that file).
+ * Fails closed: an invalid file throws `PolicyLoadError` at startup. `fontScale` min 1
+ * is the ACCESSIBILITY FLOOR: text may be enlarged up to 2x but never shrunk.
  */
-export const plannerPolicy: CreatorPolicy = {
-  version: PLANNER_POLICY_VERSION,
-  allowedActions: [
-    PlannerActions.Create,
-    PlannerActions.Edit,
-    PlannerActions.Reorder,
-    PlannerActions.Complete,
-  ],
-  requiredControls: [PlannerControls.CompleteTask],
-  allowedComponents: [
-    PlannerComponents.Board,
-    PlannerComponents.Agenda,
-    PlannerComponents.TaskCard,
-  ],
-  tokenRules: {
-    // Measurable visual limit + accessibility floor: 1 <= fontScale <= 2.
-    fontScale: { kind: 'number', min: 1, max: 2 },
-    // Density is a closed enum of two approved values.
-    density: { kind: 'enum', values: ['compact', 'comfortable'] },
-  },
-};
+export const plannerPolicy = new JsonPolicySource(policyJson).load();

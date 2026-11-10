@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/taylor-made-labs/user-tailored-ui/schemas/creator-policy.v1.schema.json",
+  "title": "Creator policy v1",
+  "description": "The creator's rules for one app. Everything an end user or an AI agent may change in the app's UI must be allowed here. Edit this file to change the rules; proposals can never write it. Unknown keys are errors, so typos are caught.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "policyVersion", "allowedActions", "requiredControls", "allowedComponents", "tokens"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Path or URL of this schema. Lets editors validate and autocomplete the file.",
+      "examples": ["../foundation/schemas/creator-policy.v1.schema.json"]
+    },
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.\\d+\\.\\d+$",
+      "description": "Version of this file format (semver, major 1). Not the same as policyVersion.",
+      "examples": ["1.0.0"]
+    },
+    "policyVersion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The creator's own version of these rules. Change it whenever the rules change. Saved customizations are tagged with it and re-checked when it differs.",
+      "examples": ["1.0.0", "2026.11.1"]
+    },
+    "allowedActions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/id" },
+      "uniqueItems": true,
+      "description": "Domain actions a customized view may expose. Any action not listed is rejected.",
+      "examples": [["task.create", "task.complete"]]
+    },
+    "requiredControls": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "Controls that must stay present and usable in every view. Hiding or removing one is rejected. Use for things the user must always be able to do.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "why": {
+            "type": "string",
+            "description": "Plain-language reason this control is required. Shown to people and agents; never enforced.",
+            "examples": ["Users must always be able to finish a task."]
+          }
+        }
+      },
+      "examples": [[{ "id": "complete-task", "why": "Users must always be able to finish a task." }]]
+    },
+    "allowedComponents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/id" },
+      "uniqueItems": true,
+      "description": "Component ids a view may show. Any component not listed is rejected.",
+      "examples": [["board", "agenda", "task-card"]]
+    },
+    "tokens": {
+      "type": "object",
+      "description": "Appearance and behavior settings the user may change. Each key is a token name. A token not listed here cannot be changed. Each token has a type and the limits it must stay within.",
+      "additionalProperties": { "$ref": "#/$defs/token" },
+      "examples": [{ "fontScale": { "type": "number", "min": 1, "max": 2 }, "density": { "type": "enum", "values": ["compact", "comfortable"] } }]
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slots"],
+      "description": "NOT ENFORCED YET (task T2.6). Named places in the page and the components each may hold. The loader rejects this key until enforcement exists, so a rule is never silently ignored.",
+      "examples": [{ "slots": { "top": ["add-task"], "main": ["board"] } }],
+      "properties": {
+        "slots": {
+          "type": "object",
+          "description": "Slot name to the ordered list of component or control ids it may hold.",
+          "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true },
+          "examples": [{ "top": ["add-task"], "main": ["board", "agenda"] }]
+        }
+      }
+    },
+    "inference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keyModes"],
+      "description": "NOT ENFORCED YET (requirement R3). How the app gets AI model access. The loader rejects this key until it is wired.",
+      "examples": [{ "keyModes": ["byok", "managed"] }],
+      "properties": {
+        "keyModes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["byok", "managed"] },
+          "description": "byok = the end user brings their own key. managed = the developer's key, kept on a server.",
+          "examples": [["byok", "managed"]]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]*$",
+      "description": "A stable identifier: starts with a letter, then letters, digits, dot, dash or underscore.",
+      "examples": ["task.create", "complete-task"]
+    },
+    "token": {
+      "description": "One token rule. The type field picks the kind.",
+      "oneOf": [
+        { "$ref": "#/$defs/numberToken" },
+        { "$ref": "#/$defs/enumToken" },
+        { "$ref": "#/$defs/booleanToken" },
+        { "$ref": "#/$defs/colorToken" }
+      ]
+    },
+    "numberToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "description": "A number kept inside an inclusive range. Use min as a floor (for example 1 so text never shrinks).",
+      "properties": {
+        "type": { "const": "number", "description": "Token kind.", "examples": ["number"] },
+        "min": { "type": "number", "description": "Smallest allowed value, inclusive. Leave out for no lower limit.", "examples": [1] },
+        "max": { "type": "number", "description": "Largest allowed value, inclusive. Leave out for no upper limit.", "examples": [2] }
+      }
+    },
+    "enumToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "values"],
+      "description": "A value chosen from a fixed list.",
+      "properties": {
+        "type": { "const": "enum", "description": "Token kind.", "examples": ["enum"] },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": ["string", "number", "boolean"] },
+          "description": "The allowed values.",
+          "examples": [["compact", "comfortable"]]
+        }
+      }
+    },
+    "booleanToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "description": "An on/off switch.",
+      "properties": {
+        "type": { "const": "boolean", "description": "Token kind.", "examples": ["boolean"] }
+      }
+    },
+    "colorToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "minContrastAgainst", "minRatio"],
+      "description": "NOT ENFORCED YET (task T2.6): a color that must keep a minimum contrast. The loader rejects it until enforcement exists.",
+      "properties": {
+        "type": { "const": "color", "description": "Token kind.", "examples": ["color"] },
+        "palette": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/hex" },
+          "description": "Allowed colors. Leave out to allow any color that meets the contrast floor.",
+          "examples": [["#0f766e", "#1d4ed8"]]
+        },
+        "minContrastAgainst": { "$ref": "#/$defs/hex", "description": "Background color the contrast is measured against.", "examples": ["#ffffff"] },
+        "minRatio": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 21,
+          "description": "Smallest contrast ratio against minContrastAgainst. 4.5 is the accessibility minimum for body text.",
+          "examples": [4.5]
+        }
+      }
+    },
+    "hex": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "A color as #rrggbb.",
+      "examples": ["#ffffff"]
+    }
+  }
+}

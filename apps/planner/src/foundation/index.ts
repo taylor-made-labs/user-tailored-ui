@@ -67,3 +67,14 @@ export {
   type TestDoubleScript,
 } from './adapters/inference/test-double.js';
 export { InMemoryHistoryStore } from './adapters/history/in-memory.js';
+
+// Creator policy as a JSON file (R4).
+export {
+  JsonPolicySource,
+  PolicyLoadError,
+  checkPolicy,
+  parseCreatorPolicy,
+  formatIssue,
+  type PolicySource,
+  type PolicyIssue,
+} from './domain/customization/json-policy.js';
