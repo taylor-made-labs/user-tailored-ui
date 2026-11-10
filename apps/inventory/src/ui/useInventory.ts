@@ -59,6 +59,8 @@ export interface InventoryState {
   readonly applyPreview: () => Promise<void>;
   readonly dismissPreview: () => void;
   readonly undo: (ref: string) => Promise<void>;
+  /** Go back to the shipped baseline view (not a saved history entry). */
+  readonly resetToDefault: () => Promise<void>;
 }
 
 export function useInventory(args: UseInventoryArgs): InventoryState {
@@ -186,6 +188,19 @@ export function useInventory(args: UseInventoryArgs): InventoryState {
     [cz],
   );
 
+  // Saved as a new history entry (not just a view swap) so a reload keeps the reset.
+  const resetToDefault = useCallback(async () => {
+    const res = await cz.apply(view, cz.defaults, 'Reset to default view');
+    if (res.ok) {
+      setView(res.view);
+      setPreview(null);
+      setRejection(null);
+      await refreshHistory();
+    } else {
+      setRejection(res.result.reasons);
+    }
+  }, [cz, view, refreshHistory]);
+
   return {
     items,
     view,
@@ -200,5 +215,6 @@ export function useInventory(args: UseInventoryArgs): InventoryState {
     applyPreview,
     dismissPreview,
     undo,
+    resetToDefault,
   };
 }

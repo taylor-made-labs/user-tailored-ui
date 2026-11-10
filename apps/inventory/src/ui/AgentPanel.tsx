@@ -153,6 +153,12 @@ export function AgentPanel(props: { inventory: InventoryState }): JSX.Element {
               </button>
             </li>
           ))}
+          <li>
+            default view{' '}
+            <button style={{ fontSize: '0.7rem' }} onClick={() => void inventory.resetToDefault()}>
+              reset to default view
+            </button>
+          </li>
         </ul>
       </div>
     </aside>

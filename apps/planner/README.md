@@ -28,9 +28,9 @@ This copy is **not** a pure copy of the pin. PR #11 added, after vendoring:
 Pin is current: that commit's tree is byte-identical to the source repo's `main` (`6143130`, the squash-merge of the slice PR). `git diff 94e0fbe origin/main` is empty.
 
 **`browser-repos` pin.** The tarball is built from [browser-repos](https://github.com/taylor-made-labs/browser-repos)
-`main` at commit `6fd649ff414cad4a33c957967f813d9811ba54ca` (slices 1-7), by
+`main` at commit `bda680b09170c9cbd1a033dbddbfe4697b403c51` (slices 1-7 + browser Buffer and durable-flush fixes), by
 `scripts/pack-browser-repos.sh` (npm pack of the compiled `dist/`). Lockfile integrity
-`sha512-IRvAlnsB+Po66BRzRggTALxirk6v0wzJBUSNn+ltTnu9mzB1zCOhI/upaspF8UdC7xwE+rImOQlMSq+IGsZy9Q==`.
+`sha512-uuvzksjfKWybZRURQiVzfIjZSJY0trZrDGVpvBYrNrfH5AW5A/m3b72aOYdMKVIvSTUqtpwrPmyxXW4jKuqgnQ==`.
 `test/browser-repos-pin.test.ts` imports `GitHubSyncTarget`, which the old `369ab3d` build lacked.
 
 **Re-vendoring.** `scripts/vendor-apps.sh` never deletes anything here and skips a keep-list

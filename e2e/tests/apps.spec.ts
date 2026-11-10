@@ -8,24 +8,7 @@
  * product. What IS real here: the built bundle, Chromium, real IndexedDB, and the real
  * browser-repos git history store.
  */
-import { createRequire } from 'node:module';
 import { test, expect, type Page } from '@playwright/test';
-
-// TEST-ONLY workaround for defect D1 (see .kiro/specs/user-tailored-ui/tasks.md T4.3):
-// the built apps call isomorphic-git, which needs a global `Buffer` the browser lacks.
-// The "shimmed" suites add it in the test page only, to prove everything downstream.
-// The "raw build" tests run WITHOUT it and are marked test.fail() until D1 is fixed.
-const require = createRequire(import.meta.url);
-function bufferShim(): string {
-  const esbuild = require('../../apps/planner/node_modules/esbuild') as {
-    buildSync(o: object): { outputFiles: { text: string }[] };
-  };
-  return esbuild.buildSync({
-    stdin: { contents: "import {Buffer} from 'buffer'; window.Buffer = Buffer;", resolveDir: new URL('../../apps/planner/', import.meta.url).pathname },
-    bundle: true, format: 'iife', write: false,
-  }).outputFiles[0]!.text;
-}
-
 
 interface AppCase {
   name: string;
@@ -58,7 +41,6 @@ const APPS: AppCase[] = [
   },
 ];
 
-test.beforeEach(async ({ page }) => { if (process.env['SHIM']) await page.addInitScript({ path: process.env['SHIM'] }); });
 const viewLabel = (page: Page) => page.locator('header strong');
 const apply = async (page: Page, app: AppCase) => {
   await page.getByRole('button', { name: app.validPick }).click();
@@ -67,9 +49,8 @@ const apply = async (page: Page, app: AppCase) => {
 };
 
 for (const app of APPS) {
-  test.describe(`${app.name} (raw build, no shim)`, () => {
+  test.describe(`${app.name} (built app, no Node globals)`, () => {
     test('apply saves the customization to the history store', async ({ page }) => {
-      test.fail(true, 'D1: "Buffer is not defined" while staging the git commit; Apply silently does nothing.');
       await page.goto(app.url);
       await apply(page, app);
       await expect(viewLabel(page)).toHaveText(app.validView);
@@ -94,9 +75,8 @@ for (const app of APPS) {
     );
   });
 
-  test.describe(`${app.name} (Buffer shim, real IndexedDB + browser-repos)`, () => {
+  test.describe(`${app.name} (real IndexedDB + browser-repos)`, () => {
     test.beforeEach(async ({ page }) => {
-      await page.addInitScript({ content: bufferShim() });
       await page.goto(app.url); // fresh context = empty IndexedDB
       await expect(viewLabel(page)).toHaveText(app.baseView);
     });
@@ -104,7 +84,6 @@ for (const app of APPS) {
     test('customization persists across reload', async ({ page }) => {
       await apply(page, app);
       await expect(viewLabel(page)).toHaveText(app.validView);
-      await page.waitForTimeout(1500); // see D2 below
       await page.reload();
       await expect(viewLabel(page)).toHaveText(app.validView);
       await expect(page.getByRole('button', { name: 'undo to here' })).toHaveCount(1);
@@ -113,7 +92,6 @@ for (const app of APPS) {
     });
 
     test('reload right after Apply keeps the change', async ({ page }) => {
-      test.fail(true, 'D2: Apply reports success but the commit is not durable for ~1s; an immediate reload loses it.');
       await apply(page, app);
       await expect(viewLabel(page)).toHaveText(app.validView);
       await page.reload();
@@ -128,13 +106,13 @@ for (const app of APPS) {
       await expect(page.getByRole('alert')).toHaveCount(0);
     });
 
-    test.fixme(
-      'undo returns to the baseline view (D3: history lists saved states only, no baseline entry)',
-      async ({ page }) => {
-        await apply(page, app);
-        await page.getByRole('button', { name: 'undo to here' }).first().click();
-        await expect(viewLabel(page)).toHaveText(app.baseView);
-      },
-    );
+    test('undo reaches the baseline view, and it survives reload (D3)', async ({ page }) => {
+      await apply(page, app);
+      await expect(viewLabel(page)).toHaveText(app.validView);
+      await page.getByRole('button', { name: 'reset to default view' }).click();
+      await expect(viewLabel(page)).toHaveText(app.baseView);
+      await page.reload();
+      await expect(viewLabel(page)).toHaveText(app.baseView);
+    });
   });
 }
