@@ -3,7 +3,8 @@
  *
  * Wires the foundation `CustomizationOrchestrator` with:
  *   - the Planner `CreatorPolicy`,
- *   - the labeled `TestDoubleInferenceAdapter` BY DEFAULT (offline, no key),
+ *   - an injected `InferenceProvider` (real Anthropic in the product; the labeled
+ *     test double is injected by tests and the dev flag only),
  *   - a `CustomizationHistoryStore`: the app (`main.tsx`) injects the real
  *     browser-repos / IndexedDB-git-backed store; the in-memory double is the
  *     fallback default here and is used by the deterministic Node tests.
@@ -17,7 +18,6 @@
 import {
   CustomizationOrchestrator,
   InMemoryHistoryStore,
-  TestDoubleInferenceAdapter,
   type CustomizationHistoryStore,
   type CustomizationProposal,
   type HistoryRef,
@@ -28,15 +28,14 @@ import {
 } from '../ports/foundation.js';
 import { plannerPolicy } from './policy.js';
 import { defaultBoardView } from './views.js';
-import { plannerAgentScript } from './agent-script.js';
 
 export const PLANNER_APP_ID = 'user-tailored-planner';
 export const PLANNER_APP_VERSION = '0.1.0';
 
 export interface PlannerCustomizationDeps {
   readonly userId: string;
-  /** Defaults to the labeled offline test-double agent. */
-  readonly inference?: InferenceProvider;
+  /** REQUIRED. The product passes the real adapter; only tests and the dev flag pass the test double. */
+  readonly inference: InferenceProvider;
   /** Defaults to the in-memory history double. */
   readonly history?: CustomizationHistoryStore;
   /** Injectable clock for deterministic tests. */
@@ -54,13 +53,11 @@ export class PlannerCustomization {
   private readonly scope: HistoryScope;
 
   constructor(deps: PlannerCustomizationDeps) {
-    const inference =
-      deps.inference ?? new TestDoubleInferenceAdapter(plannerAgentScript);
     this.history = deps.history ?? new InMemoryHistoryStore();
     this.scope = { userId: deps.userId, appId: PLANNER_APP_ID };
     this.orchestrator = new CustomizationOrchestrator({
       policy: plannerPolicy,
-      inference,
+      inference: deps.inference,
       history: this.history,
       appVersion: PLANNER_APP_VERSION,
       ...(deps.now ? { now: deps.now } : {}),

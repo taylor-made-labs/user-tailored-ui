@@ -3,7 +3,8 @@
  *
  * Wires the foundation `CustomizationOrchestrator` with:
  *   - the Inventory `CreatorPolicy`,
- *   - the labeled `TestDoubleInferenceAdapter` BY DEFAULT (offline, no key),
+ *   - an injected `InferenceProvider` (real Anthropic in the product; the labeled
+ *     test double is injected by tests and the dev flag only),
  *   - a `CustomizationHistoryStore` (in-memory double by default; an IndexedDB-backed
  *     store is injectable later through the same port).
  *
@@ -16,7 +17,6 @@
 import {
   CustomizationOrchestrator,
   InMemoryHistoryStore,
-  TestDoubleInferenceAdapter,
   type CustomizationHistoryStore,
   type CustomizationProposal,
   type HistoryRef,
@@ -27,15 +27,14 @@ import {
 } from '../ports/foundation.js';
 import { inventoryPolicy } from './policy.js';
 import { defaultGridView } from './views.js';
-import { inventoryAgentScript } from './agent-script.js';
 
 export const INVENTORY_APP_ID = 'user-tailored-inventory';
 export const INVENTORY_APP_VERSION = '0.1.0';
 
 export interface InventoryCustomizationDeps {
   readonly userId: string;
-  /** Defaults to the labeled offline test-double agent. */
-  readonly inference?: InferenceProvider;
+  /** REQUIRED. The product passes the real adapter; only tests and the dev flag pass the test double. */
+  readonly inference: InferenceProvider;
   /** Defaults to the in-memory history double. */
   readonly history?: CustomizationHistoryStore;
   /** Injectable clock for deterministic tests. */
@@ -53,13 +52,11 @@ export class InventoryCustomization {
   private readonly scope: HistoryScope;
 
   constructor(deps: InventoryCustomizationDeps) {
-    const inference =
-      deps.inference ?? new TestDoubleInferenceAdapter(inventoryAgentScript);
     this.history = deps.history ?? new InMemoryHistoryStore();
     this.scope = { userId: deps.userId, appId: INVENTORY_APP_ID };
     this.orchestrator = new CustomizationOrchestrator({
       policy: inventoryPolicy,
-      inference,
+      inference: deps.inference,
       history: this.history,
       appVersion: INVENTORY_APP_VERSION,
       ...(deps.now ? { now: deps.now } : {}),

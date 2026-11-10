@@ -3,24 +3,20 @@
  *
  * utterance -> preview -> apply / undo, with INLINE rejection explanations that cite
  * the failed invariant, and an honest SIMULATED label whenever the preview came from
- * the labeled test-double agent. Quick-pick buttons let a judge trigger the valid
- * low-stock focus transform and each of the four violation classes without typing.
+ * the labeled test-double agent (dev flag only). Every ask goes to a real model; there
+ * are no canned quick picks (R2.1). Without a key, Ask is disabled and says why (R2.5).
  */
 
 import { useState } from 'react';
+import type { ApiKeyState } from './useApiKey.js';
+import { BROKER_URL } from '../inference.js';
 import type { InventoryState } from './useInventory.js';
 import { InventoryControls } from '../customization/policy.js';
 
-const QUICK_PICKS: readonly { label: string; utterance: string }[] = [
-  { label: 'Low-stock focus (valid)', utterance: 'show only low stock items to restock' },
-  { label: 'Remove adjust control (reject)', utterance: 'remove adjust quantity control' },
-  { label: 'Giant font 2.5x (reject)', utterance: 'make the font huge' },
-  { label: 'Add a kanban board (reject)', utterance: 'add a kanban board' },
-  { label: 'Enable archive (reject)', utterance: 'add an archive action' },
-];
-
-export function AgentPanel(props: { inventory: InventoryState }): JSX.Element {
-  const { inventory } = props;
+export function AgentPanel(props: { inventory: InventoryState; apiKey?: ApiKeyState }): JSX.Element {
+  const { inventory, apiKey } = props;
+  const [keyDraft, setKeyDraft] = useState('');
+  const blocked = apiKey !== undefined && !apiKey.hasKey && !BROKER_URL;
   const [utterance, setUtterance] = useState('');
 
   return (
@@ -38,7 +34,7 @@ export function AgentPanel(props: { inventory: InventoryState }): JSX.Element {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (utterance.trim()) void inventory.propose(utterance);
+          if (!blocked && utterance.trim()) void inventory.propose(utterance);
         }}
         style={{ display: 'flex', gap: 6, marginBottom: 8 }}
       >
@@ -49,21 +45,52 @@ export function AgentPanel(props: { inventory: InventoryState }): JSX.Element {
           onChange={(e) => setUtterance(e.target.value)}
           style={{ flex: 1 }}
         />
-        <button type="submit">Ask</button>
+        <button type="submit" disabled={blocked}>
+          Ask
+        </button>
       </form>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
-        {QUICK_PICKS.map((q) => (
-          <button
-            key={q.label}
-            type="button"
-            style={{ fontSize: '0.75rem' }}
-            onClick={() => void inventory.propose(q.utterance)}
-          >
-            {q.label}
-          </button>
-        ))}
-      </div>
+      {apiKey && (
+        <div style={{ marginBottom: 8, fontSize: '0.8rem' }}>
+          {apiKey.hasKey ? (
+            <button type="button" onClick={() => void apiKey.clearKey()}>
+              Forget API key
+            </button>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void apiKey.setKey(keyDraft).then(() => setKeyDraft(''));
+              }}
+            >
+              <p role="status" style={{ margin: '0 0 4px' }}>
+                {BROKER_URL
+                  ? 'Optional: use your own Anthropic key.'
+                  : 'No API key. Add your Anthropic key to ask the agent.'}
+              </p>
+              <input
+                type="password"
+                autoComplete="off"
+                aria-label="Anthropic API key"
+                value={keyDraft}
+                onChange={(e) => setKeyDraft(e.target.value)}
+              />{' '}
+              <button type="submit">Use key</button>
+              {!BROKER_URL && (
+                <p style={{ margin: '4px 0 0', opacity: 0.7 }}>
+                  Kept in memory for this session. It is sent straight from your browser to
+                  api.anthropic.com, so only use a key you can rotate.
+                </p>
+              )}
+            </form>
+          )}
+        </div>
+      )}
+      {inventory.error && (
+        <div role="alert" style={{ border: '1px solid #c66', borderRadius: 6, padding: 8, marginBottom: 12, background: '#fff3f3', fontSize: '0.85rem' }}>
+          {inventory.error}
+        </div>
+      )}
 
       {inventory.preview && (
         <div
@@ -76,7 +103,7 @@ export function AgentPanel(props: { inventory: InventoryState }): JSX.Element {
           }}
         >
           <strong>Preview</strong>
-          {inventory.preview.simulated && (
+          {__ENABLE_TEST_DOUBLE__ && inventory.preview.simulated && (
             <span
               title="Produced by the labeled offline test-double agent, not a real model."
               style={{

@@ -13,21 +13,28 @@ import { usePlanner } from './ui/usePlanner.js';
 import type { PlannerCustomizationDeps } from './customization/service.js';
 import { AddTask, TaskList } from './ui/components.js';
 import { AgentPanel } from './ui/AgentPanel.js';
+import { useApiKey } from './ui/useApiKey.js';
+import { SessionKeyStore, type KeyStore } from './ports/foundation.js';
+
+const noKeyStore = new SessionKeyStore();
 
 export interface AppProps {
   readonly userId: string;
   readonly taskStore: TaskStore;
   /** Customization-store wiring (history/inference). `main.tsx` injects the
    *  browser-repos-backed history store here; omit for the in-memory default. */
-  readonly customizationDeps?: Omit<PlannerCustomizationDeps, 'userId'>;
+  readonly customizationDeps: Omit<PlannerCustomizationDeps, 'userId'>;
+  /** Present in the product: gates Ask on a key. Absent only under the dev test-double flag. */
+  readonly keyStore?: KeyStore;
 }
 
 export function App(props: AppProps): JSX.Element {
   const planner = usePlanner({
     userId: props.userId,
     taskStore: props.taskStore,
-    ...(props.customizationDeps ? { customizationDeps: props.customizationDeps } : {}),
+    customizationDeps: props.customizationDeps,
   });
+  const apiKey = useApiKey(props.keyStore ?? noKeyStore);
   const isAgenda = planner.view.components.some((c) => c.componentId === 'agenda');
 
   return (
@@ -50,7 +57,7 @@ export function App(props: AppProps): JSX.Element {
             onMove={planner.moveTask}
           />
         </section>
-        <AgentPanel planner={planner} />
+        <AgentPanel planner={planner} {...(props.keyStore ? { apiKey } : {})} />
       </div>
     </main>
   );

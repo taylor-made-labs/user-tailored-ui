@@ -1,5 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { TestDoubleInferenceAdapter, SessionKeyStore, type InferenceProvider } from './ports/foundation.js';
+import { createProductInference } from './inference.js';
 import { App } from './App.js';
 import { IndexedDbTaskStore } from './adapters/task-store-indexeddb.js';
 import { BrowserReposHistoryStore } from './adapters/history-browser-repos.js';
@@ -18,11 +20,28 @@ const historyStore = new BrowserReposHistoryStore();
 // user separation is demonstrated via scoped ids (here and in the stores).
 const userId = 'local-user';
 
-const container = document.getElementById('root');
-if (container) {
-  createRoot(container).render(
-    <StrictMode>
-      <App userId={userId} taskStore={taskStore} customizationDeps={{ history: historyStore }} />
-    </StrictMode>,
-  );
+// Real inference is the product path. The deterministic test double is reachable ONLY
+// through the VITE_ENABLE_TEST_DOUBLE dev-server flag (vite.config.ts); production builds fold the branch away
+// (checked in CI by scripts/check-no-test-double.mjs). The dynamic import keeps the
+// script out of the production bundle.
+const keyStore = new SessionKeyStore();
+const useDouble = __ENABLE_TEST_DOUBLE__;
+
+async function makeInference(): Promise<InferenceProvider> {
+  if (!__ENABLE_TEST_DOUBLE__) return createProductInference(keyStore);
+  const { plannerAgentScript } = await import('./customization/agent-script.js');
+  return new TestDoubleInferenceAdapter(plannerAgentScript);
 }
+
+void makeInference().then((inference) => {
+  const container = document.getElementById('root');
+  if (container) {
+    createRoot(container).render(
+      <StrictMode>
+        <App userId={userId} taskStore={taskStore} customizationDeps={{ history: historyStore, inference }}
+            {...(useDouble ? {} : { keyStore })}
+          />
+      </StrictMode>,
+    );
+  }
+});

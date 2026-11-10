@@ -26,6 +26,11 @@ import { InMemoryItemStore } from './adapters/item-store-memory.js';
 import { InventoryCustomization } from './customization/service.js';
 import { violationProposals, type ViolationId } from './customization/views.js';
 import { InventoryControls } from './customization/policy.js';
+import { TestDoubleInferenceAdapter } from './ports/foundation.js';
+import { inventoryAgentScript } from './customization/agent-script.js';
+
+const testAgent = (): TestDoubleInferenceAdapter =>
+  new TestDoubleInferenceAdapter(inventoryAgentScript);
 
 function fixedClock(): DomainClock {
   let n = 0;
@@ -72,7 +77,7 @@ async function main(): Promise<void> {
 
   // --- Customization: valid low-stock focus transform ----------------------
   line('\n== Customize: full catalog -> low-stock focus ==');
-  const cz = new InventoryCustomization({ userId, now: clock.now });
+  const cz = new InventoryCustomization({ inference: testAgent(), userId, now: clock.now });
   let current = cz.defaults;
   const proposed = await cz.proposeFromUtterance(current, 'show only low stock items to restock');
   if (!proposed.ok) throw new Error('low-stock proposal unexpectedly rejected');

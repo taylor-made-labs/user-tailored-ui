@@ -22,6 +22,11 @@ import {
 import { InventoryCustomization } from '../src/customization/service.js';
 import { adjustQty, createItem, type Item } from '../src/domain/item.js';
 import { InMemoryItemStore } from '../src/adapters/item-store-memory.js';
+import { TestDoubleInferenceAdapter } from '../src/ports/foundation.js';
+import { inventoryAgentScript } from '../src/customization/agent-script.js';
+
+const testAgent = (): TestDoubleInferenceAdapter =>
+  new TestDoubleInferenceAdapter(inventoryAgentScript);
 
 const stubNow = (): string => '2026-11-03T00:00:00.000Z';
 
@@ -42,7 +47,7 @@ describe('inventory policy + defaults', () => {
 
 describe('low-stock focus transform (valid customization)', () => {
   it('previews and applies, preserving the adjust-qty control and item-card', () => {
-    const cz = new InventoryCustomization({ userId: 'u1', now: stubNow });
+    const cz = new InventoryCustomization({ inference: testAgent(), userId: 'u1', now: stubNow });
     const outcome = cz.previewProposal(cz.defaults, lowStockFocusProposal, {
       simulated: true,
       providerId: 'test-double',
@@ -59,7 +64,7 @@ describe('low-stock focus transform (valid customization)', () => {
   });
 
   it('the default offline agent produces the low-stock focus from an utterance', async () => {
-    const cz = new InventoryCustomization({ userId: 'u1', now: stubNow });
+    const cz = new InventoryCustomization({ inference: testAgent(), userId: 'u1', now: stubNow });
     const outcome = await cz.proposeFromUtterance(cz.defaults, 'focus on low stock to reorder');
     expect(outcome.ok).toBe(true);
     if (outcome.ok) {
@@ -80,7 +85,7 @@ describe('the four violation classes all reject with a cited reason', () => {
 
   for (const [id, expectedInvariant] of cases) {
     it(`${id} -> ${expectedInvariant}`, () => {
-      const cz = new InventoryCustomization({ userId: 'u1', now: stubNow });
+      const cz = new InventoryCustomization({ inference: testAgent(), userId: 'u1', now: stubNow });
       const outcome = cz.previewProposal(cz.defaults, violationProposals[id], {
         simulated: true,
         providerId: 'test-double',
@@ -94,7 +99,7 @@ describe('the four violation classes all reject with a cited reason', () => {
   }
 
   it('a rejected proposal never mutates the base view (last valid view kept)', () => {
-    const cz = new InventoryCustomization({ userId: 'u1', now: stubNow });
+    const cz = new InventoryCustomization({ inference: testAgent(), userId: 'u1', now: stubNow });
     const before = JSON.stringify(cz.defaults);
     cz.previewProposal(cz.defaults, violationProposals['disallowed-action'], {
       simulated: true,
@@ -113,7 +118,7 @@ describe('the four violation classes all reject with a cited reason', () => {
 
 describe('save / reopen / undo', () => {
   it('applies low-stock focus, reopens it under current policy, undoes to a prior valid view', async () => {
-    const cz = new InventoryCustomization({ userId: 'u1', now: stubNow });
+    const cz = new InventoryCustomization({ inference: testAgent(), userId: 'u1', now: stubNow });
 
     const p = cz.previewProposal(cz.defaults, lowStockFocusProposal, {
       simulated: true,
@@ -138,7 +143,7 @@ describe('save / reopen / undo', () => {
   });
 
   it('reopen with no saved state falls back to defaults', async () => {
-    const cz = new InventoryCustomization({ userId: 'fresh', now: stubNow });
+    const cz = new InventoryCustomization({ inference: testAgent(), userId: 'fresh', now: stubNow });
     const reopened = await cz.reopen();
     expect(reopened.usedFallback).toBe(true);
     expect(reopened.view).toEqual(defaultGridView);
@@ -153,7 +158,7 @@ describe('save / reopen / undo', () => {
     await store.save(userId, items);
     const idsBefore = items.map((t) => t.id).join(',');
 
-    const cz = new InventoryCustomization({ userId, now: stubNow });
+    const cz = new InventoryCustomization({ inference: testAgent(), userId, now: stubNow });
     const p = cz.previewProposal(cz.defaults, lowStockFocusProposal, {
       simulated: true,
       providerId: 'test-double',
@@ -170,8 +175,8 @@ describe('save / reopen / undo', () => {
 
 describe('user separation', () => {
   it('two users do not share customization history', async () => {
-    const a = new InventoryCustomization({ userId: 'alice', now: stubNow });
-    const b = new InventoryCustomization({ userId: 'bob', now: stubNow });
+    const a = new InventoryCustomization({ inference: testAgent(), userId: 'alice', now: stubNow });
+    const b = new InventoryCustomization({ inference: testAgent(), userId: 'bob', now: stubNow });
     const p = a.previewProposal(a.defaults, lowStockFocusProposal, {
       simulated: true,
       providerId: 'test-double',
