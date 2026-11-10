@@ -9,11 +9,15 @@ Requirement ids refer to `requirements.md`.
 
 ## Phase 1 — Fix known defects (unblocks everything) 
 
-- [ ] **T1.1 [P] Rebuild the browser-repos tarball from `main`.** Replace the
+- [x] **T1.1 [P] Rebuild the browser-repos tarball from `main`.** Replace the
   `369ab3d` tarball in both apps with one built from browser-repos `main`; record the SHA
   in each app README and the lockfile integrity hash.
   _Check:_ CI green; `npm ls @taylor-made-labs/browser-repos` shows the new build; a test
   imports a slice 6/7 export that the old build lacks. _(R7)_
+  _Done:_ tarball built from browser-repos `6fd649f` via new `scripts/pack-browser-repos.sh`;
+  integrity updated in both lockfiles; `npm ci` accepts it; `test/browser-repos-pin.test.ts`
+  imports `GitHubSyncTarget`. Both apps: typecheck, lint, test (26 / 28), build pass on Node 24 locally.
+  Defect found: the old tarball's `package.json` was hand-written; the script now generates it.
 - [ ] **T1.2 [P] Make `scripts/vendor-apps.sh` safe.** It must not delete app-owned wiring
   (`src/adapters/history-browser-repos.ts`, `vendor/`, `creator-policy.json`). Preferred:
   explicit keep-list; later option is the workspace package (design §5, A17).

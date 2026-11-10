@@ -25,11 +25,11 @@ This copy is **not** a pure copy of the pin. PR #12 added, after vendoring:
 
 Pin is current: it is the head of the source repo's `main` as of 2026-11-09.
 
-**`browser-repos` pin.** The tarball's `dist/` is byte-identical to a fresh `npm ci && npm run build`
-of [browser-repos](https://github.com/taylor-made-labs/browser-repos) at commit
-`369ab3d` (slice 5). Checked 2026-11-09. It is **older than** browser-repos `main`
-(`98fb9ad`, slices 6 and 7), so the public-API-surface and remote-sync slices are not in this
-app. The tarball's `package.json` was written by hand; it is not the output of `npm pack`.
+**`browser-repos` pin.** The tarball is built from [browser-repos](https://github.com/taylor-made-labs/browser-repos)
+`main` at commit `6fd649ff414cad4a33c957967f813d9811ba54ca` (slices 1-7), by
+`scripts/pack-browser-repos.sh` (npm pack of the compiled `dist/`). Lockfile integrity
+`sha512-IRvAlnsB+Po66BRzRggTALxirk6v0wzJBUSNn+ltTnu9mzB1zCOhI/upaspF8UdC7xwE+rImOQlMSq+IGsZy9Q==`.
+`test/browser-repos-pin.test.ts` imports `GitHubSyncTarget`, which the old `369ab3d` build lacked.
 
 **Re-vendoring caveat.** `scripts/vendor-apps.sh` deletes and re-copies this folder from the
 source repo, which would **remove the changes above**. The "one command to reproduce" below
