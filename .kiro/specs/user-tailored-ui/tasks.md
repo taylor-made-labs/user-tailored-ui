@@ -62,10 +62,12 @@ Requirement ids refer to `requirements.md`.
 
 ## Phase 3 — Real inference and keys
 
-- [ ] **T3.1 [P] `AnthropicMessagesAdapter`** with strict proposal parsing and error mapping.
+- [x] **T3.1 [P] `AnthropicMessagesAdapter`** with strict proposal parsing and error mapping.
   _Check:_ mocked-fetch tests for success, bad JSON, wrong shape, 401, 429, network. _(R2.2, R2.3, R2.6)_
-- [ ] **T3.2 [P] `KeyStore` (session + IndexedDB) and `SecretString`.**
+  _Evidence:_ `src/adapters/inference/anthropic-messages.ts`, `test/anthropic-messages.test.ts` (plain `fetch`, no SDK; the spec's SDK option was skipped to keep the browser bundle small).
+- [x] **T3.2 [P] `KeyStore` (session + IndexedDB) and `SecretString`.**
   _Check:_ canary-key test: key absent from history, export, logs, error text. _(R3.3, R3.4)_
+  _Evidence:_ `src/security/secret-string.ts`, `src/adapters/keys/key-store.ts`, canary tests in `test/anthropic-messages.test.ts`.
 - [ ] **T3.3 [P] Broker.** Stateless function, routes and checks per design §4.3. Local
   runnable with `node`; deployable to Lambda.
   _Check:_ tests: managed adds server key; BYOK passes through and never logs; bad origin,
