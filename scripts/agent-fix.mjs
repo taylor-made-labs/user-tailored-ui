@@ -67,7 +67,8 @@ const MODEL = process.env.AGENT_FIX_MODEL || 'claude-haiku-4-5';
 const MAX_TOKENS = 2048;
 
 // Enforcement / sensitive paths the fixer must NEVER edit. Kept in lock-step with the
-// sensitive set in .github/workflows/auto-merge.yml — a fix that touched any of these
+// sensitive set in scripts/sensitive-paths.mjs (this list is now a deliberate superset: the
+// fixer stays strict even where the merge gate relaxed) — a fix that touched any of these
 // would be weakening the gate, which is exactly what a self-healing agent must not do.
 const SENSITIVE_PATTERNS = [
   /(^|\/)src\/domain\/customization\/validator\.ts$/,
