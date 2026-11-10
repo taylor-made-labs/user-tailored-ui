@@ -76,8 +76,11 @@ jobs:
             // branch checkout, so a PR cannot change the rule that judges it).
             // Vendored apps/**/foundation copies are NOT listed: CI job "verify" runs
             // scripts/vendored-parity.mjs, which fails on any drift from src/.
+            // Fail closed: if the rule file is missing (e.g. the PR that introduces it,
+            // judged against a default branch that does not have it yet), hold everything.
             const { isSensitive } = await import(
-              `file://${process.env.GITHUB_WORKSPACE}/scripts/sensitive-paths.mjs`);
+              `file://${process.env.GITHUB_WORKSPACE}/scripts/sensitive-paths.mjs`)
+              .catch(() => ({ isSensitive: () => true }));
             const touchesSensitive = files.some(f =>
               isSensitive(f.filename) || (f.previous_filename && isSensitive(f.previous_filename)));
             const humanApproved = labels.includes('human-approved');
