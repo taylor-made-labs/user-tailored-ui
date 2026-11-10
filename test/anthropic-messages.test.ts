@@ -12,8 +12,8 @@ import { CustomizationOrchestrator } from '../src/domain/customization/orchestra
 import { InMemoryHistoryStore } from '../src/adapters/history/in-memory.js';
 import type { ViewDescriptor } from '../src/domain/customization/types.js';
 
-// Not a real key. Canary string used to prove it never leaks.
-const CANARY = 'sk-ant-CANARY-0000000000000000';
+// Not a key. Canary string used to prove it never leaks.
+const CANARY = 'CANARY-KEY-0000000000000000';
 const key = new SecretString(CANARY);
 
 const request: InferenceRequest = {
