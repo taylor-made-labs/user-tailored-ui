@@ -10,14 +10,17 @@
  *   - apps/<app>/src/foundation/**  -> scripts/vendored-parity.mjs (CI) proves each copy
  *                                      matches its reviewed source in src/.
  *   - the word "secret"/"credential" inside a source file name (e.g. secret-string.ts)
- *   - anything named "broker"
  */
 export const SENSITIVE_PATTERNS = [
   // Source-of-truth enforcement code.
   /(^|\/)src\/domain\/customization\/(validator|orchestrator|policy)\.ts$/,
   // The gate itself: workflows and the scripts/rules they run.
   /(^|\/)\.github\/workflows\/.+\.ya?ml$/,
-  /(^|\/)scripts\/(boundary-check|dep-hygiene|vendored-parity|sensitive-paths)\.mjs$/,
+  // Includes every script the review and fix agents run, so neither can edit its own rules.
+  /(^|\/)scripts\/(boundary-check|dep-hygiene|vendored-parity|sensitive-paths|semantic-review|agent-fix)\.mjs$/,
+  /(^|\/)\.kiro\/agents\/customization-boundary-reviewer\.json$/,
+  // Relays users' API keys.
+  /(^|\/)src\/broker\//,
   // Licensing.
   /(^|\/)(LICENSE|NOTICE)/i,
   // Real credential files: dotenv (templates excepted), key material, secret/credential

@@ -22,6 +22,10 @@ describe('sensitive-path rule: still held', () => {
     'scripts/boundary-check.mjs',
     'scripts/sensitive-paths.mjs',
     'scripts/vendored-parity.mjs',
+    'scripts/agent-fix.mjs',
+    'scripts/semantic-review.mjs',
+    '.kiro/agents/customization-boundary-reviewer.json',
+    'src/broker/handler.ts',
     'LICENSE-MIT',
     'NOTICE',
     '.env',
@@ -38,7 +42,6 @@ describe('sensitive-path rule: still held', () => {
 describe('sensitive-path rule: no longer held', () => {
   it.each([
     'src/security/secret-string.ts',
-    'src/broker/handler.ts',
     'apps/planner/src/foundation/domain/customization/validator.ts',
     'apps/inventory/src/foundation/security/secret-string.ts',
     'apps/planner/src/customization/policy.ts',
@@ -76,7 +79,7 @@ describe('open PRs', () => {
     '#19': [],
     '#20': [],
     '#21': [],
-    '#22': [],
+    '#22': ['src/broker/handler.ts', 'src/broker/lambda.ts'],
     '#24': ['.github/workflows/e2e.yml'],
     '#26': ['src/domain/customization/orchestrator.ts', 'src/domain/customization/validator.ts'],
   };
