@@ -18,11 +18,16 @@ Requirement ids refer to `requirements.md`.
   integrity updated in both lockfiles; `npm ci` accepts it; `test/browser-repos-pin.test.ts`
   imports `GitHubSyncTarget`. Both apps: typecheck, lint, test (26 / 28), build pass on Node 24 locally.
   Defect found: the old tarball's `package.json` was hand-written; the script now generates it.
-- [ ] **T1.2 [P] Make `scripts/vendor-apps.sh` safe.** It must not delete app-owned wiring
+- [x] **T1.2 [P] Make `scripts/vendor-apps.sh` safe.** It must not delete app-owned wiring
   (`src/adapters/history-browser-repos.ts`, `vendor/`, `creator-policy.json`). Preferred:
   explicit keep-list; later option is the workspace package (design §5, A17).
   _Check:_ run the script on a clean clone; `git diff` shows no deletion of wiring files;
   CI `apps` job still green. _(R7)_
+  _Done:_ script no longer runs `rm -rf`; rsync has no `--delete` and a `KEEP_LIST` of app-owned
+  files. Ran it on a fresh worktree of main: `git status` shows only the script changed, no
+  file removed. First draft of the list missed `vitest.config.ts` (drops `setupFiles`) and
+  `src/customization/service.ts` (reverts a comment); both added after the diff showed them.
+  Limit: `package.json` is kept, so upstream dependency changes need a manual merge.
 - [ ] **T1.3 [P] Cross-OS packaging check.** Extend the pack/install/build check to
   `ubuntu`, `macos`, `windows` runners. **ASSUMPTION A18:** Node 20 on all three.
   _Check:_ CI matrix shows 3 green jobs. _(R7.2)_
