@@ -1,0 +1,41 @@
+name: E2E
+
+# Spec T4.3 / R7.1: build both apps, serve with vite preview, test in real Chromium.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build planner
+        working-directory: apps/planner
+        run: npm ci && npm run build
+      - name: Build inventory
+        working-directory: apps/inventory
+        run: npm ci && npm run build
+      - name: Install e2e deps and Chromium
+        working-directory: e2e
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: Run Playwright
+        working-directory: e2e
+        run: npx playwright test
+      - name: Upload traces and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: |
+            e2e/test-results
+            e2e/playwright-report
+          if-no-files-found: ignore
