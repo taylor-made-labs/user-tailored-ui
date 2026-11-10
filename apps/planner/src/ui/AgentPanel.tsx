@@ -151,6 +151,12 @@ export function AgentPanel(props: { planner: PlannerState }): JSX.Element {
               </button>
             </li>
           ))}
+          <li>
+            default view{' '}
+            <button style={{ fontSize: '0.7rem' }} onClick={() => void planner.resetToDefault()}>
+              reset to default view
+            </button>
+          </li>
         </ul>
       </div>
     </aside>

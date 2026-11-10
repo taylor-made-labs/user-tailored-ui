@@ -95,17 +95,24 @@ Requirement ids refer to `requirements.md`.
   a stub broker, in real Chromium.
   _Check:_ CI job green; trace artifacts uploaded. _(R7.1)_
   _Evidence (partial, honest):_ `e2e/` suite runs both built apps via `vite preview` in real
-  Chromium (`cd e2e && npm ci && npx playwright test`): 10 pass, 4 `fixme`, 0 unexpected
+  Chromium (`cd e2e && npm ci && npx playwright test`): 12 pass, 2 `fixme` (T3.7), 0 unexpected
   failures. Inference is the labeled test double (no key here); no product path added.
   **Not yet met:** CI job + trace upload (workflow edit is sensitive; separate PR).
-  **Real defects found (tests are `test.fail`/`fixme` until fixed, flip them when fixed):**
-  - **D1 (blocker):** in the shipped build, Apply fails: `ReferenceError: Buffer is not defined`
-    from isomorphic-git while staging `entries/000000.json`. The view never changes and
-    nothing is saved. Only a test-side `window.Buffer` shim makes it work. Fix in
-    browser-repos (bundle a Buffer polyfill) or the apps' vite config.
-  - **D2:** with Buffer shimmed, Apply updates the view but a reload within ~1s loses the
-    change (write not yet durable). Reload after 1.5s keeps it. Belongs with T4.4.
-  - **D3:** undo lists saved states only; there is no way back to the baseline view.
+  **Real defects found by this suite, now FIXED (D1-D3), with the e2e tests un-skipped:**
+  - **D1 (fixed):** `Buffer is not defined` on Apply. Root cause: isomorphic-git reads a
+    global `Buffer`. Fixed in the library (browser-repos PR #10): `src/buffer-polyfill.ts`
+    installs the pinned `buffer@6.0.3` when the host has none. Unit test
+    `test/browser-env.test.ts` runs a commit with no Buffer global. No app-side polyfill.
+    Both apps re-vendor the tarball built from browser-repos `bda680b`.
+  - **D2 (fixed):** LightningFS saves its index on a ~500ms debounce. browser-repos now
+    flushes to IndexedDB before any mutation (and repo creation) resolves, so Apply is
+    durable when it reports success. Unit test: a fresh `RepoManager` opened right after
+    `commit()` sees it. e2e "reload right after Apply keeps the change" passes, no wait.
+  - **D3 (fixed):** history now ends with a "reset to default view" action in both apps. It
+    saves the shipped baseline as a new history entry, so reload keeps it. e2e covers it.
+  - Evidence: `cd e2e && npx playwright test` in Chromium: 12 pass, 2 skipped (T3.7 only),
+    0 `test.fail`, 0 Buffer shim. Overlap note: PR #20 (shared history adapter) moves the history adapters; this change leaves them
+    alone (D2 is fixed in the library), so no conflict is expected.
   - T3.7 per-part verdict UI is absent; rejection shows rule id + message only (tested).
   - The default product agent is still the test double (T3.5).
 - [ ] **T4.4 Durability evidence for IndexedDB-git.** Reload mid-write and kill-tab test;
