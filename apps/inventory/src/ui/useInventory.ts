@@ -42,7 +42,7 @@ export interface InventoryPreview {
 export interface UseInventoryArgs {
   readonly userId: string;
   readonly itemStore: ItemStore;
-  readonly customizationDeps?: Omit<InventoryCustomizationDeps, 'userId'>;
+  readonly customizationDeps: Omit<InventoryCustomizationDeps, 'userId'>;
 }
 
 export interface InventoryState {
@@ -50,6 +50,8 @@ export interface InventoryState {
   readonly view: ViewDescriptor;
   readonly preview: InventoryPreview | null;
   readonly rejection: readonly RejectionReason[] | null;
+  /** Honest provider failure (auth, quota, network, bad reply). The last valid view is kept. */
+  readonly error: string | null;
   readonly history: readonly HistoryRef[];
   readonly addItem: (input: CreateItemInput) => void;
   readonly editItemFields: (id: string, input: EditItemInput) => void;
@@ -74,6 +76,7 @@ export function useInventory(args: UseInventoryArgs): InventoryState {
   const [view, setView] = useState<ViewDescriptor>(cz.defaults);
   const [preview, setPreview] = useState<InventoryPreview | null>(null);
   const [rejection, setRejection] = useState<readonly RejectionReason[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<readonly HistoryRef[]>([]);
 
   const refreshHistory = useCallback(async () => {
@@ -138,7 +141,14 @@ export function useInventory(args: UseInventoryArgs): InventoryState {
     async (utterance: string) => {
       setRejection(null);
       setPreview(null);
-      const outcome = await cz.proposeFromUtterance(view, utterance);
+      setError(null);
+      let outcome;
+      try {
+        outcome = await cz.proposeFromUtterance(view, utterance);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'The agent failed.');
+        return;
+      }
       if (outcome.ok) {
         setPreview({
           view: outcome.preview.view,
@@ -172,6 +182,7 @@ export function useInventory(args: UseInventoryArgs): InventoryState {
   const dismissPreview = useCallback(() => {
     setPreview(null);
     setRejection(null);
+    setError(null);
   }, []);
 
   const undo = useCallback(
@@ -191,6 +202,7 @@ export function useInventory(args: UseInventoryArgs): InventoryState {
     view,
     preview,
     rejection,
+    error,
     history,
     addItem,
     editItemFields,

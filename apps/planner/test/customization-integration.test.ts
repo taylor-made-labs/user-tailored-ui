@@ -22,6 +22,11 @@ import {
 import { PlannerCustomization } from '../src/customization/service.js';
 import { completeTask, createTask, type Task } from '../src/domain/task.js';
 import { InMemoryTaskStore } from '../src/adapters/task-store-memory.js';
+import { TestDoubleInferenceAdapter } from '../src/ports/foundation.js';
+import { plannerAgentScript } from '../src/customization/agent-script.js';
+
+const testAgent = (): TestDoubleInferenceAdapter =>
+  new TestDoubleInferenceAdapter(plannerAgentScript);
 
 const stubNow = (): string => '2026-11-03T00:00:00.000Z';
 
@@ -42,7 +47,7 @@ describe('planner policy + defaults', () => {
 
 describe('agenda transform (valid customization)', () => {
   it('previews and applies, preserving the complete control and task-card', () => {
-    const cz = new PlannerCustomization({ userId: 'u1', now: stubNow });
+    const cz = new PlannerCustomization({ inference: testAgent(), userId: 'u1', now: stubNow });
     const outcome = cz.previewProposal(cz.defaults, agendaProposal, {
       simulated: true,
       providerId: 'test-double',
@@ -58,7 +63,7 @@ describe('agenda transform (valid customization)', () => {
   });
 
   it('the default offline agent produces the agenda from an utterance', async () => {
-    const cz = new PlannerCustomization({ userId: 'u1', now: stubNow });
+    const cz = new PlannerCustomization({ inference: testAgent(), userId: 'u1', now: stubNow });
     const outcome = await cz.proposeFromUtterance(cz.defaults, 'turn this into a daily agenda');
     expect(outcome.ok).toBe(true);
     if (outcome.ok) {
@@ -78,7 +83,7 @@ describe('the four violation classes all reject with a cited reason', () => {
 
   for (const [id, expectedInvariant] of cases) {
     it(`${id} -> ${expectedInvariant}`, () => {
-      const cz = new PlannerCustomization({ userId: 'u1', now: stubNow });
+      const cz = new PlannerCustomization({ inference: testAgent(), userId: 'u1', now: stubNow });
       const outcome = cz.previewProposal(cz.defaults, violationProposals[id], {
         simulated: true,
         providerId: 'test-double',
@@ -92,7 +97,7 @@ describe('the four violation classes all reject with a cited reason', () => {
   }
 
   it('a rejected proposal never mutates the base view (last valid view kept)', () => {
-    const cz = new PlannerCustomization({ userId: 'u1', now: stubNow });
+    const cz = new PlannerCustomization({ inference: testAgent(), userId: 'u1', now: stubNow });
     const before = JSON.stringify(cz.defaults);
     cz.previewProposal(cz.defaults, violationProposals['disallowed-action'], {
       simulated: true,
@@ -111,7 +116,7 @@ describe('the four violation classes all reject with a cited reason', () => {
 
 describe('save / reopen / undo (R5)', () => {
   it('applies agenda, reopens it under current policy, undoes to a prior valid view', async () => {
-    const cz = new PlannerCustomization({ userId: 'u1', now: stubNow });
+    const cz = new PlannerCustomization({ inference: testAgent(), userId: 'u1', now: stubNow });
 
     const p = cz.previewProposal(cz.defaults, agendaProposal, {
       simulated: true,
@@ -136,7 +141,7 @@ describe('save / reopen / undo (R5)', () => {
   });
 
   it('reopen with no saved state falls back to defaults', async () => {
-    const cz = new PlannerCustomization({ userId: 'fresh', now: stubNow });
+    const cz = new PlannerCustomization({ inference: testAgent(), userId: 'fresh', now: stubNow });
     const reopened = await cz.reopen();
     expect(reopened.usedFallback).toBe(true);
     expect(reopened.view).toEqual(defaultBoardView);
@@ -151,7 +156,7 @@ describe('save / reopen / undo (R5)', () => {
     await store.save(userId, tasks);
     const idsBefore = tasks.map((t) => t.id).join(',');
 
-    const cz = new PlannerCustomization({ userId, now: stubNow });
+    const cz = new PlannerCustomization({ inference: testAgent(), userId, now: stubNow });
     const p = cz.previewProposal(cz.defaults, agendaProposal, {
       simulated: true,
       providerId: 'test-double',
@@ -168,8 +173,8 @@ describe('save / reopen / undo (R5)', () => {
 
 describe('user separation', () => {
   it('two users do not share customization history', async () => {
-    const a = new PlannerCustomization({ userId: 'alice', now: stubNow });
-    const b = new PlannerCustomization({ userId: 'bob', now: stubNow });
+    const a = new PlannerCustomization({ inference: testAgent(), userId: 'alice', now: stubNow });
+    const b = new PlannerCustomization({ inference: testAgent(), userId: 'bob', now: stubNow });
     const p = a.previewProposal(a.defaults, agendaProposal, {
       simulated: true,
       providerId: 'test-double',

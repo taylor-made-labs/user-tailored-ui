@@ -75,9 +75,10 @@ Requirement ids refer to `requirements.md`.
 - [ ] **T3.4 App UI for keys.** Mode picker from `inference.keyModes`, key field, "remember
   on this device", route label for direct mode, clear error states.
   _Check:_ component tests; with no key, Ask is disabled with a message. _(R2.5, R3.1)_
-- [ ] **T3.5 Remove fake-agent quick picks from product UI; gate the test double.**
+- [x] **T3.5 Remove fake-agent quick picks from product UI; gate the test double.**
   _Check:_ production build grep finds no test-double code and no `SIMULATED` path;
   dev flag still shows labeled `SIMULATED`. _(R2.1, R2.4)_
+  _Evidence:_ quick picks deleted from both `AgentPanel.tsx`; `scripts/check-no-test-double.mjs apps/planner apps/inventory` passes on production builds; double and `SIMULATED` only behind `__ENABLE_TEST_DOUBLE__` (dev server + `VITE_ENABLE_TEST_DOUBLE=true`); `PlannerCustomization`/`InventoryCustomization` no longer default to the double. Minimal key field + disabled Ask included; full T3.4 UI (mode picker, remember) still open.
 - [ ] **T3.6 [P] Key hardening (later).** WebCrypto wrapping, non-extractable key.
   _Check:_ stored value is not the plain key. _(A4)_
 - [ ] **T3.7 Proposal/verdict UI.** Show proposal, per-part verdict, rule id and sentence.

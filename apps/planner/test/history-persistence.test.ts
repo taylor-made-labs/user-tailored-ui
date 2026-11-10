@@ -19,6 +19,11 @@ import { PlannerCustomization } from '../src/customization/service.js';
 import { agendaProposal, defaultBoardView } from '../src/customization/views.js';
 import { PlannerControls } from '../src/customization/policy.js';
 import type { HistoryScope, SavedCustomization } from '../src/ports/foundation.js';
+import { TestDoubleInferenceAdapter } from '../src/ports/foundation.js';
+import { plannerAgentScript } from '../src/customization/agent-script.js';
+
+const testAgent = (): TestDoubleInferenceAdapter =>
+  new TestDoubleInferenceAdapter(plannerAgentScript);
 
 const scope: HistoryScope = { userId: 'local-user', appId: 'user-tailored-planner' };
 
@@ -76,7 +81,7 @@ describe('browser-repos history store: persistence across a simulated reload', (
     const history = new BrowserReposHistoryStore();
     const userId = 'e2e-user';
 
-    const cz = new PlannerCustomization({ userId, history, now: stubNow });
+    const cz = new PlannerCustomization({ inference: testAgent(), userId, history, now: stubNow });
     const preview = cz.previewProposal(cz.defaults, agendaProposal, {
       simulated: true,
       providerId: 'test-double',
@@ -88,7 +93,7 @@ describe('browser-repos history store: persistence across a simulated reload', (
 
     // New service instance + new git-backed store over the same IndexedDB = reload.
     const reloadedHistory = new BrowserReposHistoryStore();
-    const cz2 = new PlannerCustomization({ userId, history: reloadedHistory, now: stubNow });
+    const cz2 = new PlannerCustomization({ inference: testAgent(), userId, history: reloadedHistory, now: stubNow });
     const reopened = await cz2.reopen();
     expect(reopened.usedFallback).toBe(false);
     expect(reopened.view.components.map((c) => c.componentId)).toContain('agenda');

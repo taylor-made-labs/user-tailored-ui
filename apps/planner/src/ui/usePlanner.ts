@@ -41,7 +41,7 @@ export interface PlannerPreview {
 export interface UsePlannerArgs {
   readonly userId: string;
   readonly taskStore: TaskStore;
-  readonly customizationDeps?: Omit<PlannerCustomizationDeps, 'userId'>;
+  readonly customizationDeps: Omit<PlannerCustomizationDeps, 'userId'>;
 }
 
 export interface PlannerState {
@@ -49,6 +49,8 @@ export interface PlannerState {
   readonly view: ViewDescriptor;
   readonly preview: PlannerPreview | null;
   readonly rejection: readonly RejectionReason[] | null;
+  /** Honest provider failure (auth, quota, network, bad reply). The last valid view is kept. */
+  readonly error: string | null;
   readonly history: readonly HistoryRef[];
   readonly addTask: (title: string) => void;
   readonly editTaskTitle: (id: string, title: string) => void;
@@ -73,6 +75,7 @@ export function usePlanner(args: UsePlannerArgs): PlannerState {
   const [view, setView] = useState<ViewDescriptor>(cz.defaults);
   const [preview, setPreview] = useState<PlannerPreview | null>(null);
   const [rejection, setRejection] = useState<readonly RejectionReason[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<readonly HistoryRef[]>([]);
 
   const refreshHistory = useCallback(async () => {
@@ -139,7 +142,14 @@ export function usePlanner(args: UsePlannerArgs): PlannerState {
     async (utterance: string) => {
       setRejection(null);
       setPreview(null);
-      const outcome = await cz.proposeFromUtterance(view, utterance);
+      setError(null);
+      let outcome;
+      try {
+        outcome = await cz.proposeFromUtterance(view, utterance);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'The agent failed.');
+        return;
+      }
       if (outcome.ok) {
         setPreview({
           view: outcome.preview.view,
@@ -173,6 +183,7 @@ export function usePlanner(args: UsePlannerArgs): PlannerState {
   const dismissPreview = useCallback(() => {
     setPreview(null);
     setRejection(null);
+    setError(null);
   }, []);
 
   const undo = useCallback(
@@ -192,6 +203,7 @@ export function usePlanner(args: UsePlannerArgs): PlannerState {
     view,
     preview,
     rejection,
+    error,
     history,
     addTask,
     editTaskTitle,

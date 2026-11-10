@@ -23,6 +23,11 @@ import { InMemoryTaskStore } from './adapters/task-store-memory.js';
 import { PlannerCustomization } from './customization/service.js';
 import { violationProposals, type ViolationId } from './customization/views.js';
 import { PlannerControls } from './customization/policy.js';
+import { TestDoubleInferenceAdapter } from './ports/foundation.js';
+import { plannerAgentScript } from './customization/agent-script.js';
+
+const testAgent = (): TestDoubleInferenceAdapter =>
+  new TestDoubleInferenceAdapter(plannerAgentScript);
 
 function fixedClock(): DomainClock {
   let n = 0;
@@ -59,7 +64,7 @@ async function main(): Promise<void> {
 
   // --- Customization: valid agenda transform -------------------------------
   line('\n== Customize: board -> focused daily agenda ==');
-  const cz = new PlannerCustomization({ userId, now: clock.now });
+  const cz = new PlannerCustomization({ inference: testAgent(), userId, now: clock.now });
   let current = cz.defaults;
   const proposed = await cz.proposeFromUtterance(current, 'make it a focused daily agenda');
   if (!proposed.ok) throw new Error('agenda proposal unexpectedly rejected');

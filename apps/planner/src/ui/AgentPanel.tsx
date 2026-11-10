@@ -3,24 +3,20 @@
  *
  * utterance -> preview -> apply / undo, with INLINE rejection explanations that cite
  * the failed invariant, and an honest SIMULATED label whenever the preview came from
- * the labeled test-double agent. Quick-pick buttons let a judge trigger the valid
- * agenda transform and each of the four violation classes without typing.
+ * the labeled test-double agent (dev flag only). Every ask goes to a real model; there
+ * are no canned quick picks (R2.1). Without a key, Ask is disabled and says why (R2.5).
  */
 
 import { useState } from 'react';
+import type { ApiKeyState } from './useApiKey.js';
+import { BROKER_URL } from '../inference.js';
 import type { PlannerState } from './usePlanner.js';
 import { PlannerControls } from '../customization/policy.js';
 
-const QUICK_PICKS: readonly { label: string; utterance: string }[] = [
-  { label: 'Focused daily agenda (valid)', utterance: 'make it a focused daily agenda' },
-  { label: 'Remove complete control (reject)', utterance: 'remove complete button' },
-  { label: 'Giant font 3x (reject)', utterance: 'make the font huge' },
-  { label: 'Add a banner ad (reject)', utterance: 'add a banner' },
-  { label: 'Enable delete-all (reject)', utterance: 'add delete all action' },
-];
-
-export function AgentPanel(props: { planner: PlannerState }): JSX.Element {
-  const { planner } = props;
+export function AgentPanel(props: { planner: PlannerState; apiKey?: ApiKeyState }): JSX.Element {
+  const { planner, apiKey } = props;
+  const [keyDraft, setKeyDraft] = useState('');
+  const blocked = apiKey !== undefined && !apiKey.hasKey && !BROKER_URL;
   const [utterance, setUtterance] = useState('');
 
   return (
@@ -38,7 +34,7 @@ export function AgentPanel(props: { planner: PlannerState }): JSX.Element {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (utterance.trim()) void planner.propose(utterance);
+          if (!blocked && utterance.trim()) void planner.propose(utterance);
         }}
         style={{ display: 'flex', gap: 6, marginBottom: 8 }}
       >
@@ -49,21 +45,52 @@ export function AgentPanel(props: { planner: PlannerState }): JSX.Element {
           onChange={(e) => setUtterance(e.target.value)}
           style={{ flex: 1 }}
         />
-        <button type="submit">Ask</button>
+        <button type="submit" disabled={blocked}>
+          Ask
+        </button>
       </form>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
-        {QUICK_PICKS.map((q) => (
-          <button
-            key={q.label}
-            type="button"
-            style={{ fontSize: '0.75rem' }}
-            onClick={() => void planner.propose(q.utterance)}
-          >
-            {q.label}
-          </button>
-        ))}
-      </div>
+      {apiKey && (
+        <div style={{ marginBottom: 8, fontSize: '0.8rem' }}>
+          {apiKey.hasKey ? (
+            <button type="button" onClick={() => void apiKey.clearKey()}>
+              Forget API key
+            </button>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void apiKey.setKey(keyDraft).then(() => setKeyDraft(''));
+              }}
+            >
+              <p role="status" style={{ margin: '0 0 4px' }}>
+                {BROKER_URL
+                  ? 'Optional: use your own Anthropic key.'
+                  : 'No API key. Add your Anthropic key to ask the agent.'}
+              </p>
+              <input
+                type="password"
+                autoComplete="off"
+                aria-label="Anthropic API key"
+                value={keyDraft}
+                onChange={(e) => setKeyDraft(e.target.value)}
+              />{' '}
+              <button type="submit">Use key</button>
+              {!BROKER_URL && (
+                <p style={{ margin: '4px 0 0', opacity: 0.7 }}>
+                  Kept in memory for this session. It is sent straight from your browser to
+                  api.anthropic.com, so only use a key you can rotate.
+                </p>
+              )}
+            </form>
+          )}
+        </div>
+      )}
+      {planner.error && (
+        <div role="alert" style={{ border: '1px solid #c66', borderRadius: 6, padding: 8, marginBottom: 12, background: '#fff3f3', fontSize: '0.85rem' }}>
+          {planner.error}
+        </div>
+      )}
 
       {planner.preview && (
         <div
@@ -76,7 +103,7 @@ export function AgentPanel(props: { planner: PlannerState }): JSX.Element {
           }}
         >
           <strong>Preview</strong>
-          {planner.preview.simulated && (
+          {__ENABLE_TEST_DOUBLE__ && planner.preview.simulated && (
             <span
               title="Produced by the labeled offline test-double agent, not a real model."
               style={{

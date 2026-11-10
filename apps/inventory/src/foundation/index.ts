@@ -67,3 +67,13 @@ export {
   type TestDoubleScript,
 } from './adapters/inference/test-double.js';
 export { InMemoryHistoryStore } from './adapters/history/in-memory.js';
+
+// Real inference + key handling (R2, R3). Keys never enter history, exports or logs.
+export {
+  AnthropicMessagesAdapter,
+  parseProposalStrict,
+  DEFAULT_ANTHROPIC_MODEL,
+  type AnthropicMessagesConfig,
+} from './adapters/inference/anthropic-messages.js';
+export { SecretString, scrub } from './security/secret-string.js';
+export { SessionKeyStore, IdbKeyStore, type KeyStore } from './adapters/keys/key-store.js';
