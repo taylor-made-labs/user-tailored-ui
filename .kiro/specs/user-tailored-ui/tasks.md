@@ -74,11 +74,11 @@ Requirement ids refer to `requirements.md`.
 
 ## Phase 4 — Real browser, TailoredUI, deploy
 
-- [ ] **T4.1 [P] TailoredUI spike.** Clone the fork; read it; write `docs/TAILOREDUI.md`
+- [x] **T4.1 [P] TailoredUI spike.** _Done 2026-11-10: NO-GO as runtime dependency; bounded GO option sized at 4 to 5 days. `develop` confirmed as upstream's branch (29 ahead, all upstream authors). See `docs/TAILOREDUI.md`._ Clone the fork; read it; write `docs/TAILOREDUI.md`
   listing what we depend on, what we changed (today: nothing), what we need. Decide go /
   no-go (A11, R6.6).
   _Check:_ doc exists with commit SHAs; README fork section updated either way. _(R6)_
-- [ ] **T4.2 If go: fork changes + `TailoredUiAdapter`.** Work in the fork on `utui/*`
+- [ ] **T4.2 Deferred (T4.1 verdict: NO-GO as is; optional bounded change, about 4 to 5 days, do after T2/T3/T4.3). If go: fork changes + `TailoredUiAdapter`.** Work in the fork on `utui/*`
   branches, clean commits, pinned by SHA, listed in README.
   _Check:_ the app renders at least one component through the fork in a Playwright run;
   fork `git log` shows only our scoped commits. _(R6.2–R6.5)_
