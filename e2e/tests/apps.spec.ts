@@ -67,12 +67,19 @@ for (const app of APPS) {
       await expect(page.getByRole('button', { name: 'Apply' })).toHaveCount(0);
     });
 
-    test.fixme(
-      'rejection shows per-part verdicts with rule name AND sentence (T3.7 not built)',
-      async () => {
-        // T3.7 will add proposal parts each marked applied/rejected (R8.2-3).
-      },
-    );
+    test('a mixed request shows per-part verdicts (rule id AND sentence) and applies the good part', async ({ page }) => {
+      await page.goto(app.url);
+      await page.getByRole('button', { name: 'Mixed: good + bad parts' }).click();
+      const parts = page.getByRole('list', { name: 'Proposal parts' });
+      const refused = parts.getByRole('listitem').filter({ hasText: 'Not applied' });
+      await expect(refused).toHaveCount(1);
+      await expect(refused.locator('code').nth(1)).toHaveText('token-out-of-range'); // rule id
+      await expect(refused).toContainText(/maximum of 2/); // plain sentence
+      await expect(parts.getByText('Applied', { exact: true }).first()).toBeVisible();
+      await page.getByRole('button', { name: 'Apply', exact: true }).click();
+      await expect(viewLabel(page)).toHaveText(app.validView); // good parts applied
+      await expect(page.getByRole('button', { name: 'undo to here' })).toHaveCount(1); // one saved step
+    });
   });
 
   test.describe(`${app.name} (real IndexedDB + browser-repos)`, () => {

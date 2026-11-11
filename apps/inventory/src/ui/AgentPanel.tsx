@@ -12,6 +12,7 @@ import type { InventoryState } from './useInventory.js';
 import { InventoryControls } from '../customization/policy.js';
 
 const QUICK_PICKS: readonly { label: string; utterance: string }[] = [
+  { label: 'Mixed: good + bad parts', utterance: 'mixed request with a huge font' },
   { label: 'Low-stock focus (valid)', utterance: 'show only low stock items to restock' },
   { label: 'Remove adjust control (reject)', utterance: 'remove adjust quantity control' },
   { label: 'Giant font 2.5x (reject)', utterance: 'make the font huge' },
@@ -107,6 +108,18 @@ export function AgentPanel(props: { inventory: InventoryState }): JSX.Element {
               ),
             )}
           </p>
+          <ul aria-label="Proposal parts" style={{ margin: '6px 0', paddingLeft: 18, fontSize: '0.85rem' }}>
+            {inventory.preview.parts.map((p, i) => (
+              <li key={i}>
+                <strong>{p.ok ? 'Applied' : 'Not applied'}</strong> — {p.kind} <code>{p.subject}</code>
+                {!p.ok && p.ruleId && (
+                  <>
+                    {' '}(rule <code>{p.ruleId}</code>): {p.message}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
           {inventory.preview.rationale && (
             <p style={{ margin: '6px 0', fontSize: '0.8rem', opacity: 0.8 }}>
               “{inventory.preview.rationale}”

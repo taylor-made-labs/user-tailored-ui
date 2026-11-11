@@ -48,11 +48,12 @@ Requirement ids refer to `requirements.md`.
 - [ ] **T2.4 Convert Planner and Inventory policies to `creator-policy.json`.** Delete the
   TS policy objects.
   _Check:_ existing customization tests pass unchanged against the JSON policy. _(R4.1)_
-- [ ] **T2.5 [P] Partial apply in validator + orchestrator** (A1). Parts, per-part verdicts,
+- [x] **T2.5 [P] Partial apply in validator + orchestrator** (A1). Parts, per-part verdicts,
   fixpoint on resulting-view invariants, tamper = whole reject.
   _Check:_ property-style tests: output never violates policy; mixed proposal applies
   valid part and rejects invalid part with `ruleId`; one passing + one violating test per
   invariant. _(R1, R5.5)_
+  - Evidence: `validateProposalParts` in `src/domain/customization/validator.ts` (vendored into both apps); `test/partial-apply.test.ts` (10 tests: mixed token/component/action/control, none-valid, tamper = whole reject, exhaustive property check). Note: written against the `CreatorPolicy` type on main, not the JSON policy of #19 (overlap: none in these files). Fixtures `non-approved-component` now keep the base components so they still reject.
 - [ ] **T2.6 [P] Layout slots, movable controls, `accent` color with contrast floor.**
   _Check:_ violating tests: low-contrast accent, component in a disallowed slot, hiding a
   required control. _(R5)_
@@ -78,8 +79,9 @@ Requirement ids refer to `requirements.md`.
   dev flag still shows labeled `SIMULATED`. _(R2.1, R2.4)_
 - [ ] **T3.6 [P] Key hardening (later).** WebCrypto wrapping, non-extractable key.
   _Check:_ stored value is not the plain key. _(A4)_
-- [ ] **T3.7 Proposal/verdict UI.** Show proposal, per-part verdict, rule id and sentence.
+- [x] **T3.7 Proposal/verdict UI.** Show proposal, per-part verdict, rule id and sentence.
   _Check:_ component test renders a mixed result; copy matches R1. _(R1)_
+  - Evidence: both apps list each part as Applied / Not applied with rule id and sentence; e2e `a mixed request shows per-part verdicts` replaces the `test.fixme`; Chromium `npx playwright test --workers=1`: 14 pass, 0 fixme. (Check is e2e, not a component test.)
 
 ## Phase 4 — Real browser, TailoredUI, deploy
 

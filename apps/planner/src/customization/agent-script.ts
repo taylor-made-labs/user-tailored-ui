@@ -21,6 +21,8 @@ import { agendaProposal, violationProposals } from './views.js';
  */
 export const plannerAgentScript: TestDoubleScript = {
   rules: [
+    // Mixed request: one good part and one bad part (partial apply demo).
+    ['mixed', { ...agendaProposal, tokens: { ...agendaProposal.tokens, fontScale: 3 } }],
     ['remove complete', violationProposals['remove-complete-control']],
     ['hide complete', violationProposals['remove-complete-control']],
     ['huge', violationProposals['font-scale-over-limit']],

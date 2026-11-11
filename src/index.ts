@@ -24,6 +24,8 @@ export type {
 export { InvariantKind } from './domain/customization/policy.js';
 export {
   validateProposal,
+  validateProposalParts,
+  type PartVerdict,
   type ValidationResult,
   type RejectionReason,
 } from './domain/customization/validator.js';

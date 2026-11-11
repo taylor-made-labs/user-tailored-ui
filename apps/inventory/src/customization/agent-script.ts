@@ -21,6 +21,8 @@ import { lowStockFocusProposal, violationProposals } from './views.js';
  */
 export const inventoryAgentScript: TestDoubleScript = {
   rules: [
+    // Mixed request: one good part and one bad part (partial apply demo).
+    ['mixed', { ...lowStockFocusProposal, tokens: { ...lowStockFocusProposal.tokens, fontScale: 2.5 } }],
     ['remove adjust', violationProposals['remove-adjust-control']],
     ['hide adjust', violationProposals['remove-adjust-control']],
     ['hide quantity', violationProposals['remove-adjust-control']],

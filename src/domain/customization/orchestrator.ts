@@ -14,7 +14,12 @@
  */
 
 import type { CreatorPolicy } from './policy.js';
-import { validateProposal, type ValidationResult } from './validator.js';
+import {
+  validateProposal,
+  validateProposalParts,
+  type PartVerdict,
+  type ValidationResult,
+} from './validator.js';
 import type { CustomizationProposal, ViewDescriptor } from './types.js';
 import type {
   InferenceProvider,
@@ -41,6 +46,8 @@ export interface Preview {
   /** True when the underlying proposal came from a simulated/fallback provider. */
   readonly simulated: boolean;
   readonly providerId: string;
+  /** Verdict for each part of the proposal; rejected parts were not applied. */
+  readonly parts: readonly PartVerdict[];
   readonly rationale?: string;
 }
 
@@ -91,7 +98,7 @@ export class CustomizationOrchestrator {
     proposal: CustomizationProposal,
     meta: { simulated: boolean; providerId: string },
   ): ProposeOutcome {
-    const result = validateProposal(this.deps.policy, base, proposal);
+    const result = validateProposalParts(this.deps.policy, base, proposal);
     if (!result.ok) {
       return { ok: false, result };
     }
@@ -99,6 +106,7 @@ export class CustomizationOrchestrator {
       view: result.view,
       simulated: meta.simulated,
       providerId: meta.providerId,
+      parts: result.parts,
       ...(proposal.rationale !== undefined ? { rationale: proposal.rationale } : {}),
     };
     return { ok: true, preview };

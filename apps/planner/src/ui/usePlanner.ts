@@ -27,12 +27,15 @@ import {
 } from '../customization/service.js';
 import type {
   HistoryRef,
+  PartVerdict,
   RejectionReason,
   ViewDescriptor,
 } from '../ports/foundation.js';
 
 export interface PlannerPreview {
   readonly view: ViewDescriptor;
+  /** Per-part verdicts: which parts apply and which were refused (T3.7). */
+  readonly parts: readonly PartVerdict[];
   readonly simulated: boolean;
   readonly providerId: string;
   readonly rationale?: string;
@@ -145,6 +148,7 @@ export function usePlanner(args: UsePlannerArgs): PlannerState {
       if (outcome.ok) {
         setPreview({
           view: outcome.preview.view,
+          parts: outcome.preview.parts,
           simulated: outcome.preview.simulated,
           providerId: outcome.preview.providerId,
           ...(outcome.preview.rationale !== undefined
