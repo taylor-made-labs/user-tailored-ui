@@ -40,6 +40,9 @@ jobs:
       - name: Dependency hygiene (pins + lockfile; advisory scan best-effort)
         run: node scripts/dep-hygiene.mjs
 
+      - name: Vendored copies match reviewed src/ (replaces the foundation path hold)
+        run: node scripts/vendored-parity.mjs
+
       - name: Typecheck
         run: npm run typecheck
 
