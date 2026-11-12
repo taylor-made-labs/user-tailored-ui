@@ -1,0 +1,15 @@
+{
+  "$schema": "./src/foundation/schemas/creator-policy.v1.schema.json",
+  "schemaVersion": "1.0.0",
+  "policyVersion": "1.0.0",
+  "allowedActions": ["item.create", "item.edit", "item.adjustQty", "item.delete"],
+  "requiredControls": [
+    { "id": "adjust-qty", "why": "Users must always be able to restock; hide healthy items, never the restock control." }
+  ],
+  "allowedComponents": ["grid", "list", "low-stock-view", "item-card"],
+  "tokens": {
+    "fontScale": { "type": "number", "min": 1, "max": 2 },
+    "density": { "type": "enum", "values": ["compact", "comfortable"] },
+    "lowStockOnly": { "type": "boolean" }
+  }
+}

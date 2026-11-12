@@ -37,17 +37,21 @@ Requirement ids refer to `requirements.md`.
 
 ## Phase 2 — Creator rules as a config file (foundation)
 
-- [ ] **T2.1 [P] JSON Schema `creator-policy.v1`.** Fields per R4.3, descriptions and
+- [x] **T2.1 [P] JSON Schema `creator-policy.v1`.** Fields per R4.3, descriptions and
   examples on all, `additionalProperties:false`.
   _Check:_ valid and invalid fixture per field; schema itself validates under Ajv strict. _(R4.2–R4.5)_
-- [ ] **T2.2 `JsonPolicySource` + error rewriter.** Load, validate, map to `CreatorPolicy`.
+  _Evidence:_ `src/schemas/creator-policy.v1.schema.json`; `test/creator-policy.test.ts` compiles it under Ajv strict, checks every field has description+examples, and runs a good file plus 18 bad cases (each also rejected by Ajv where schema-level). Schema lives in `src/schemas/` (not `schemas/`) so tsc copies it into `dist` and apps can vendor it. `layout`, `inference` and `color` tokens are in the schema but the loader rejects them as `not-enforced-yet` until T2.6/R3 (defect: R4.3 fields are only partly enforceable today).
+- [x] **T2.2 `JsonPolicySource` + error rewriter.** Load, validate, map to `CreatorPolicy`.
   _Check:_ table test of 10 bad files, each yields path + rule + hint; good file maps to
   the policy equal to today's TS policy. _(R4.4)_
-- [ ] **T2.3 `policy:check` CLI + CI step.**
+  _Evidence:_ `src/domain/customization/json-policy.ts` (`JsonPolicySource`, `parseCreatorPolicy`, `checkPolicy`); 18-row table test, each with path + rule + hint; good file maps to the exact old TS policy (root test, plus per-app `test/creator-policy.test.ts`). The schema walker is hand-written (Ajv emits code, which the app boundary forbids); Ajv is a devDependency used only to cross-check.
+- [x] **T2.3 `policy:check` CLI + CI step.**
   _Check:_ exits non-zero on a bad file with readable output; CI runs it on both apps. _(R4.6)_
-- [ ] **T2.4 Convert Planner and Inventory policies to `creator-policy.json`.** Delete the
+  _Evidence:_ `npm run policy:check -- <file>...` (`src/cli/policy-check.ts`; builds then runs `dist`). Exit 1 on bad file with `path: message. hint`, 2 on no args. CI runs it without a workflow edit: `test/creator-policy.test.ts` (root `npm test`) calls it on both apps' files; each app's own test loads its file at import. Defect: CI does not invoke the CLI binary itself, only the same function.
+- [x] **T2.4 Convert Planner and Inventory policies to `creator-policy.json`.** Delete the
   TS policy objects.
   _Check:_ existing customization tests pass unchanged against the JSON policy. _(R4.1)_
+  _Evidence:_ `apps/{planner,inventory}/creator-policy.json`; `plannerPolicy`/`inventoryPolicy` are now loaded from JSON (TS objects deleted; id constants kept). Foundation loader + schema vendored into each `src/foundation/`. Existing app tests pass unchanged; typecheck, lint, test, build green in root and both apps.
 - [ ] **T2.5 [P] Partial apply in validator + orchestrator** (A1). Parts, per-part verdicts,
   fixpoint on resulting-view invariants, tamper = whole reject.
   _Check:_ property-style tests: output never violates policy; mixed proposal applies

@@ -19,7 +19,8 @@
  *                 healthy items visually while every item id stays in business data).
  */
 
-import type { CreatorPolicy } from '../ports/foundation.js';
+import { JsonPolicySource } from '../ports/foundation.js';
+import policyJson from '../../creator-policy.json';
 
 /** Stable action ids the Inventory domain exposes. */
 export const InventoryActions = {
@@ -44,36 +45,9 @@ export const InventoryControls = {
   AddItem: 'add-item',
 } as const;
 
-export const INVENTORY_POLICY_VERSION = '1.0.0';
-
 /**
- * The Inventory policy. `fontScale` minimum of 1 is the ACCESSIBILITY FLOOR: a
- * proposal may enlarge up to 2x but may never shrink text below the shipped baseline.
- * The adjust-qty control is required so no customization can strand stock the user
- * can no longer restock.
+ * The inventory policy, loaded from `creator-policy.json` (the creator edits that file).
+ * Fails closed: an invalid file throws `PolicyLoadError` at startup. `fontScale` min 1
+ * is the ACCESSIBILITY FLOOR: text may be enlarged up to 2x but never shrunk.
  */
-export const inventoryPolicy: CreatorPolicy = {
-  version: INVENTORY_POLICY_VERSION,
-  allowedActions: [
-    InventoryActions.Create,
-    InventoryActions.Edit,
-    InventoryActions.AdjustQty,
-    InventoryActions.Delete,
-  ],
-  requiredControls: [InventoryControls.AdjustQty],
-  allowedComponents: [
-    InventoryComponents.Grid,
-    InventoryComponents.List,
-    InventoryComponents.LowStockView,
-    InventoryComponents.ItemCard,
-  ],
-  tokenRules: {
-    // Measurable visual limit + accessibility floor: 1 <= fontScale <= 2.
-    fontScale: { kind: 'number', min: 1, max: 2 },
-    // Density is a closed enum of two approved values.
-    density: { kind: 'enum', values: ['compact', 'comfortable'] },
-    // Low-stock focus toggle. When true the view hides healthy items (a purely
-    // presentational filter); the item ids themselves are never removed.
-    lowStockOnly: { kind: 'boolean' },
-  },
-};
+export const inventoryPolicy = new JsonPolicySource(policyJson).load();
