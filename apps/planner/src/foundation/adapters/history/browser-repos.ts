@@ -1,8 +1,10 @@
+/** VENDORED from @taylor-made-labs/user-tailored-ui (src/adapters/history/browser-repos.ts); edit it there. */
 /**
  * browser-repos-backed customization-history store (spec R5; the "state lives in a
  * browser-based git repo" headline claim, made real).
  *
- * This is the PRODUCTION adapter for the Planner's customization history. It
+ * This is the PRODUCTION adapter for an app's customization history (shared by the
+ * Planner and Inventory; each passes its own `repoPrefix` and `author`). It
  * implements the same `CustomizationHistoryStore` port as the in-memory double, but
  * every save is a real git commit in an IndexedDB-backed repository provided by the
  * `@taylor-made-labs/browser-repos` library (isomorphic-git over LightningFS). History
@@ -28,7 +30,7 @@ import type {
   HistoryRef,
   HistoryScope,
   SavedCustomization,
-} from '../ports/foundation.js';
+} from '../../ports/customization-history.js';
 import {
   RepoManager,
   type BrowserRepo,
@@ -36,11 +38,13 @@ import {
   type RepoManagerOptions,
 } from '@taylor-made-labs/browser-repos';
 
-/** The commit author recorded on every history commit. Plain metadata — never a credential. */
-const HISTORY_AUTHOR: CommitAuthor = {
-  name: 'user-tailored-planner',
-  email: 'history@user-tailored-planner.local',
-};
+/** Per-app identity. `repoPrefix` namespaces repo ids; `author` is plain commit metadata. */
+export interface BrowserReposHistoryOptions extends RepoManagerOptions {
+  /** Repo-id prefix, e.g. `planner-history`. Changing it orphans existing saved history. */
+  readonly repoPrefix: string;
+  /** Commit author on every history commit. Never a credential. */
+  readonly author: CommitAuthor;
+}
 
 /** Directory inside each repo holding the append-only entry files. */
 const ENTRIES_DIR = 'entries';
@@ -67,8 +71,13 @@ export class BrowserReposHistoryStore implements CustomizationHistoryStore {
   /** One open-repo promise per scope key, so concurrent calls share one handle. */
   private readonly repos = new Map<string, Promise<BrowserRepo>>();
 
-  constructor(options: RepoManagerOptions = {}) {
-    this.manager = new RepoManager(options);
+  private readonly repoPrefix: string;
+  private readonly author: CommitAuthor;
+
+  constructor({ repoPrefix, author, ...managerOptions }: BrowserReposHistoryOptions) {
+    this.repoPrefix = repoPrefix;
+    this.author = author;
+    this.manager = new RepoManager(managerOptions);
   }
 
   /** Stable repo id for a scope. Mirrors the in-memory double's scope key. */
@@ -76,7 +85,7 @@ export class BrowserReposHistoryStore implements CustomizationHistoryStore {
     // RepoManager ids allow [A-Za-z0-9._-]; encode the scope into that alphabet.
     const enc = (s: string): string =>
       encodeURIComponent(s).replace(/[^A-Za-z0-9._-]/g, (c) => `-${c.charCodeAt(0).toString(16)}`);
-    return `planner-history.${enc(scope.userId)}.${enc(scope.appId)}`;
+    return `${this.repoPrefix}.${enc(scope.userId)}.${enc(scope.appId)}`;
   }
 
   /** Open (creating on first use) the repo for a scope; shared across calls. */
@@ -121,7 +130,7 @@ export class BrowserReposHistoryStore implements CustomizationHistoryStore {
     const entry: StoredEntry = { state, message };
     await repo.writeFile(path, JSON.stringify(entry));
     await repo.stage(path);
-    const oid = await repo.commit({ message, author: HISTORY_AUTHOR });
+    const oid = await repo.commit({ message, author: this.author });
     return { id: oid, savedAt: state.savedAt, message };
   }
 

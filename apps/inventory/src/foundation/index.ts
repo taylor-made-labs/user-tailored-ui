@@ -67,3 +67,7 @@ export {
   type TestDoubleScript,
 } from './adapters/inference/test-double.js';
 export { InMemoryHistoryStore } from './adapters/history/in-memory.js';
+export {
+  BrowserReposHistoryStore,
+  type BrowserReposHistoryOptions,
+} from './adapters/history/browser-repos.js';

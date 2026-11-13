@@ -14,11 +14,17 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { BrowserReposHistoryStore } from '../src/adapters/history-browser-repos.js';
+import { BrowserReposHistoryStore } from '../src/ports/foundation.js';
 import { PlannerCustomization } from '../src/customization/service.js';
 import { agendaProposal, defaultBoardView } from '../src/customization/views.js';
 import { PlannerControls } from '../src/customization/policy.js';
 import type { HistoryScope, SavedCustomization } from '../src/ports/foundation.js';
+
+const newStore = (): BrowserReposHistoryStore =>
+  new BrowserReposHistoryStore({
+    repoPrefix: 'planner-history',
+    author: { name: 'user-tailored-planner', email: 'history@user-tailored-planner.local' },
+  });
 
 const scope: HistoryScope = { userId: 'local-user', appId: 'user-tailored-planner' };
 
@@ -37,7 +43,7 @@ function sampleState(savedAt: string, fontScale: number): SavedCustomization {
 describe('browser-repos history store: persistence across a simulated reload', () => {
   it('reads back, in order, the history a prior store committed to IndexedDB-git', async () => {
     // --- First "session": write three saves through the real IndexedDB-git store ---
-    const first = new BrowserReposHistoryStore();
+    const first = newStore();
     const r1 = await first.save(scope, sampleState('2026-11-09T00:00:01.000Z', 1), 'first');
     const r2 = await first.save(scope, sampleState('2026-11-09T00:00:02.000Z', 1.5), 'second');
     const r3 = await first.save(scope, sampleState('2026-11-09T00:00:03.000Z', 2), 'third');
@@ -46,7 +52,7 @@ describe('browser-repos history store: persistence across a simulated reload', (
     expect(new Set([r1.id, r2.id, r3.id]).size).toBe(3);
 
     // --- Simulate reload: drop the handle, open a FRESH store over the same store ---
-    const reloaded = new BrowserReposHistoryStore();
+    const reloaded = newStore();
 
     const latest = await reloaded.loadLatest(scope);
     expect(latest).not.toBeNull();
@@ -65,7 +71,7 @@ describe('browser-repos history store: persistence across a simulated reload', (
   });
 
   it('user separation: a different scope sees none of the above history', async () => {
-    const store = new BrowserReposHistoryStore();
+    const store = newStore();
     const other: HistoryScope = { userId: 'someone-else', appId: 'user-tailored-planner' };
     expect(await store.loadLatest(other)).toBeNull();
     expect((await store.list(other)).length).toBe(0);
@@ -73,7 +79,7 @@ describe('browser-repos history store: persistence across a simulated reload', (
 
   it('end-to-end: the service applies + reopens an agenda through the git-backed store', async () => {
     const stubNow = (): string => '2026-11-09T00:00:00.000Z';
-    const history = new BrowserReposHistoryStore();
+    const history = newStore();
     const userId = 'e2e-user';
 
     const cz = new PlannerCustomization({ userId, history, now: stubNow });
@@ -87,7 +93,7 @@ describe('browser-repos history store: persistence across a simulated reload', (
     expect(applied.ok).toBe(true);
 
     // New service instance + new git-backed store over the same IndexedDB = reload.
-    const reloadedHistory = new BrowserReposHistoryStore();
+    const reloadedHistory = newStore();
     const cz2 = new PlannerCustomization({ userId, history: reloadedHistory, now: stubNow });
     const reopened = await cz2.reopen();
     expect(reopened.usedFallback).toBe(false);

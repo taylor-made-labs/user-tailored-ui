@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
 import { IndexedDbItemStore } from './adapters/item-store-indexeddb.js';
-import { BrowserReposHistoryStore } from './adapters/history-browser-repos.js';
+import { BrowserReposHistoryStore } from './ports/foundation.js';
 
 // Business items persist in IndexedDB (never localStorage/chrome.storage).
 const itemStore = new IndexedDbItemStore();
@@ -12,7 +12,10 @@ const itemStore = new IndexedDbItemStore();
 // reload. This is the headline "state lives in a browser-based git repo" claim made
 // real — it replaces the in-memory double, which now serves tests only. The repo is
 // separate from the item database above, keeping business data and customization apart.
-const historyStore = new BrowserReposHistoryStore();
+const historyStore = new BrowserReposHistoryStore({
+  repoPrefix: 'inventory-history',
+  author: { name: 'user-tailored-inventory', email: 'history@user-tailored-inventory.local' },
+});
 
 // A single local user for this slice. Multi-user accounts/auth are out of scope;
 // user separation is demonstrated via scoped ids (here and in the stores).
