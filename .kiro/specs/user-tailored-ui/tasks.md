@@ -66,10 +66,14 @@ Requirement ids refer to `requirements.md`.
   _Check:_ mocked-fetch tests for success, bad JSON, wrong shape, 401, 429, network. _(R2.2, R2.3, R2.6)_
 - [ ] **T3.2 [P] `KeyStore` (session + IndexedDB) and `SecretString`.**
   _Check:_ canary-key test: key absent from history, export, logs, error text. _(R3.3, R3.4)_
-- [ ] **T3.3 [P] Broker.** Stateless function, routes and checks per design §4.3. Local
+- [x] **T3.3 [P] Broker.** Stateless function, routes and checks per design §4.3. Local
   runnable with `node`; deployable to Lambda.
   _Check:_ tests: managed adds server key; BYOK passes through and never logs; bad origin,
   bad model, oversize body all refused. _(R3.2, R3.5, R3.7)_
+  _Evidence:_ `src/broker/{handler,lambda,server}.ts`; `test/broker.test.ts` (9 tests: managed key,
+  BYOK pass-through, canary key absent from logs/errors/responses, refusals, rate limit).
+  Overlap: no `SecretString` yet (PR #18); keys are call-local strings, swap in later.
+  Not done: AWS hosting (T4.6); rate limit is in-memory per instance.
 - [ ] **T3.4 App UI for keys.** Mode picker from `inference.keyModes`, key field, "remember
   on this device", route label for direct mode, clear error states.
   _Check:_ component tests; with no key, Ask is disabled with a message. _(R2.5, R3.1)_
